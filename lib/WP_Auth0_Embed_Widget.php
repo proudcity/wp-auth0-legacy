@@ -5,8 +5,8 @@ class WP_Auth0_Embed_Widget extends WP_Widget {
 	function __construct() {
 		parent::__construct(
 			$this->getWidgetId(),
-			__( $this->getWidgetName(), 'wp_auth0_widget_domain' ),
-			array( 'description' => __( $this->getWidgetDescription(), 'wpb_widget_domain' ) )
+			$this->getWidgetName(),
+			[ 'description' => $this->getWidgetDescription() ]
 		);
 	}
 
@@ -15,11 +15,11 @@ class WP_Auth0_Embed_Widget extends WP_Widget {
 	}
 
 	protected function getWidgetName() {
-		return 'Auth0 Lock Embed';
+		return __( 'Auth0 Login', 'wp-auth0' );
 	}
 
 	protected function getWidgetDescription() {
-		return 'Shows Auth0 Lock Embed in your sidebar';
+		return __( 'Shows Auth0 login form in your sidebar', 'wp-auth0' );
 	}
 
 	protected function showAsModal() {
@@ -27,57 +27,60 @@ class WP_Auth0_Embed_Widget extends WP_Widget {
 	}
 
 	public function form( $instance ) {
-
 		wp_enqueue_media();
-		wp_enqueue_script( 'wpa0_admin', WPA0_PLUGIN_URL . 'assets/js/admin.js', array( 'jquery' ) );
+		wp_enqueue_script( 'wpa0_admin' );
 		wp_enqueue_style( 'media' );
-		wp_localize_script( 'wpa0_admin', 'wpa0', array(
-				'media_title' => __( 'Choose your icon', 'wp-auth0' ),
-				'media_button' => __( 'Choose icon', 'wp-auth0' ),
-			) );
 		require WPA0_PLUGIN_DIR . 'templates/a0-widget-setup-form.php';
+		return 'form';
 	}
 
 	public function widget( $args, $instance ) {
 
-		$options = WP_Auth0_Options::Instance();
-		$client_id = $options->get( 'client_id' );
+		if ( wp_auth0_is_ready() ) {
 
-		if ( trim( $client_id ) !== '' ) {
+			$instance['show_as_modal']      = $this->showAsModal();
+			$instance['modal_trigger_name'] = isset( $instance['modal_trigger_name'] )
+				? $instance['modal_trigger_name']
+				: __( 'Login', 'wp-auth0' );
 
-			if ( WP_Auth0_Options::Instance()->get( 'passwordless_enabled' ) ) {
-				wp_enqueue_script( 'wpa0_lock', WP_Auth0_Options::Instance()->get( 'passwordless_cdn_url' ), 'jquery' );
-			} else {
-				wp_enqueue_script( 'wpa0_lock', WP_Auth0_Options::Instance()->get( 'cdn_url' ), 'jquery' );
+			if ( ! isset( $instance['redirect_to'] ) || empty( $instance['redirect_to'] ) ) {
+				// Null coalescing validates the input variable.
+				// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotValidated
+				$instance['redirect_to'] = home_url( $_SERVER['REQUEST_URI'] ?? '' );
 			}
 
 			echo $args['before_widget'];
-
-			$instance['show_as_modal'] = $this->showAsModal();
-			$instance['modal_trigger_name'] = isset( $instance['modal_trigger_name'] ) ? $instance['modal_trigger_name'] : 'Login';
-
-			if ( !isset( $instance['redirect_to'] ) || empty($instance['redirect_to']) ) {
-				$instance['redirect_to'] = home_url( $_SERVER["REQUEST_URI"] );
-			}
-			
-			require_once WPA0_PLUGIN_DIR . 'templates/login-form.php';
-			renderAuth0Form( false, $instance );
-
+			\WP_Auth0_Lock::render( false, $instance );
 			echo $args['after_widget'];
+
+		} else {
+			_e( 'Please check your Auth0 configuration', 'wp-auth0' );
 		}
 	}
 
 	public function update( $new_instance, $old_instance ) {
-		if ( trim( $new_instance['dict'] ) !== '' ) {
-			if ( strpos( $new_instance['dict'], '{' ) !== false && json_decode( $new_instance['dict'] ) === null ) {
-				$new_instance['dict'] = $old_instance['dict'];
-			}
+		$new_instance['dict'] = trim( $new_instance['dict'] );
+		if ( $new_instance['dict'] && json_decode( $new_instance['dict'] ) === null ) {
+			$new_instance['dict'] = $old_instance['dict'];
 		}
-		if ( trim( $new_instance['extra_conf'] ) !== '' ) {
-			if ( json_decode( $new_instance['extra_conf'] ) === null ) {
-				$new_instance['extra_conf'] = $old_instance['extra_conf'];
-			}
+
+		$new_instance['extra_conf'] = trim( $new_instance['extra_conf'] );
+		if ( $new_instance['extra_conf'] && json_decode( $new_instance['extra_conf'] ) === null ) {
+			$new_instance['extra_conf'] = $old_instance['extra_conf'];
 		}
+
+		if ( ! empty( $new_instance['redirect_to'] ) ) {
+			$admin_advanced = new WP_Auth0_Admin_Advanced(
+				WP_Auth0_Options::Instance(),
+				new WP_Auth0_Routes( WP_Auth0_Options::Instance() )
+			);
+
+			$new_instance['redirect_to'] = $admin_advanced->validate_login_redirect(
+				$new_instance['redirect_to'],
+				$old_instance['redirect_to']
+			);
+		}
+
 		return $new_instance;
 	}
 }

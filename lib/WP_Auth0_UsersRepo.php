@@ -1,201 +1,260 @@
 <?php
+/**
+ * Contains class WP_Auth0_UsersRepo.
+ *
+ * @package WP-Auth0
+ *
+ * @since 1.2.0
+ */
 
+/**
+ * Class WP_Auth0_UsersRepo.
+ */
 class WP_Auth0_UsersRepo {
 
+	/**
+	 * Options instance used in this class.
+	 *
+	 * @var WP_Auth0_Options
+	 */
 	protected $a0_options;
 
+	/**
+	 * WP_Auth0_UsersRepo constructor.
+	 *
+	 * @param WP_Auth0_Options $a0_options - Options instance used in this class.
+	 */
 	public function __construct( WP_Auth0_Options $a0_options ) {
 		$this->a0_options = $a0_options;
 	}
 
-	public function init() {
-		if ( $this->a0_options->get( 'jwt_auth_integration' ) == 1 ) {
-			add_filter( 'wp_jwt_auth_get_user', array( $this, 'getUser' ), 0, 2 );
-		}
-	}
+	/**
+	 * Create or join a WP user with an incoming Auth0 one or reject with an exception.
+	 *
+	 * @param object $userinfo - Profile object from Auth0.
+	 * @param string $token - ID token from Auth0.
+	 *
+	 * @return int|null|WP_Error
+	 *
+	 * @throws WP_Auth0_CouldNotCreateUserException - When the user could not be created.
+	 * @throws WP_Auth0_EmailNotVerifiedException - When a users's email is not verified but the site requires it.
+	 * @throws WP_Auth0_RegistrationNotEnabledException - When registration is not turned on for this site.
+	 */
+	public function create( $userinfo, $token ) {
 
-	public function getUser( $jwt, $encodedJWT ) {
+		$auth0_sub      = $userinfo->sub;
+		list($strategy) = explode( '|', $auth0_sub );
+		$wp_user        = null;
+		$user_id        = null;
 
-		$userRow = $this->find_auth0_user( $jwt->sub );
-
-		$domain = $this->a0_options->get( 'domain' );
-
-		$response = WP_Auth0_Api_Client::get_user( $domain, $encodedJWT, $jwt->sub );
-
-		if ( $response['response']['code'] != 200 ) return null;
-
-		if ( is_null( $userRow ) ) {
-
-			if ( $this->tokenHasRequiredScopes( $jwt ) ) {
-				$auth0User = $jwt;
-			}
-			else {
-				$auth0User = json_decode( $response['body'] );
-			}
-
-			try {
-				$user_id = $this->create( $auth0User, $encodedJWT );
-
-				do_action( 'auth0_user_login' , $user_id, $response, true, $encodedJWT, null );
-
-				return new WP_User( $user_id );
-			}
-			catch ( WP_Auth0_CouldNotCreateUserException $e ) {
-				return null;
-			}
-			catch ( WP_Auth0_RegistrationNotEnabledException $e ) {
-				return null;
-			}
-
-			return null;
-		}elseif ( $userRow instanceof WP_Error ) {
-			WP_Auth0_ErrorManager::insert_auth0_error( 'findAuth0User', $userRow );
-			return null;
-		}else {
-
-			do_action( 'auth0_user_login' , $userRow->ID, $response, false, $encodedJWT, null );
-
-			return $userRow;
-		}
-
-
-	}
-
-	public function tokenHasRequiredScopes( $jwt ) {
-
-		return (
-			( isset( $jwt->email ) || isset( $jwt->nickname ) )
-			&& isset( $jwt->identities )
-		);
-
-	}
-
-	public function create( $userinfo, $token, $access_token = null, $role = null, $ignore_unverified_email = false ) {
-
-		// If the user doesn't exist we need to either create a new one, or asign him to an existing one
-		$isDatabaseUser = false;
-
-		if (isset($userinfo->identities)) {
+		// Check legacy identities profile object for a DB connection.
+		$is_db_connection = 'auth0' === $strategy;
+		if ( ! $is_db_connection && ! empty( $userinfo->identities ) ) {
 			foreach ( $userinfo->identities as $identity ) {
-				if ( $identity->provider == "auth0" ) {
-					$isDatabaseUser = true;
+				if ( 'auth0' === $identity->provider ) {
+					$is_db_connection = true;
+					break;
 				}
 			}
-		} else {
-			$sub = $userinfo->sub;
-			list($provider, $id) = explode('|', $sub);
-			if ( $provider == "auth0" ) {
-				$isDatabaseUser = true;
-			}
 		}
 
+		// Email is considered verified if flagged as such, if we ignore the requirement, or if the strategy is skipped.
+		$email_verified = ! empty( $userinfo->email_verified )
+			|| $this->a0_options->strategy_skips_verified_email( $strategy );
 
-
-		$joinUser = null;
-
-		// If the user has a verified email or is a database user try to see if there is
-		// a user to join with. The isDatabase is because we don't want to allow database
-		// user creation if there is an existing one with no verified email
-
-		$shouldJoinUser = ( isset( $userinfo->email ) // if a0 user has email
-			&& ( ( $ignore_unverified_email || ( isset( $userinfo->email_verified ) && $userinfo->email_verified ) ) // and it is verifed (or we should ignore verification)
-				|| !$isDatabaseUser // or it is not a database user (we can trust the email is valid)
-			)
-		); // if true, we can join the a0 user with the wp one
-
-		$joinUser = get_user_by( 'email', $userinfo->email ); 
-
-		$auto_provisioning = WP_Auth0_Options::Instance()->get('auto_provisioning');
-		$allow_signup = WP_Auth0_Options::Instance()->is_wp_registration_enabled() || $auto_provisioning;
-
-		$user_id = null;
-
-		global $wpdb;
-
-		// If there is a user with the same email, we should check if the wp user was joined with an auth0 user. If so, we shouldn't allow it again
-		if (!is_null( $joinUser ) && $joinUser instanceof WP_User ) {
-			$auth0_id = get_user_meta( $joinUser->ID, $wpdb->prefix.'auth0_id', true);
-
-			if ($auth0_id) { // if it has an a0 id, we cant join it
-				$msg = __( 'There is a user with the same email', 'wp-auth0' );
-				
-				throw new WP_Auth0_CouldNotCreateUserException( $msg );
-			}
+		// WP user to join with incoming Auth0 user.
+		if ( ! empty( $userinfo->email ) ) {
+			$wp_user = get_user_by( 'email', $userinfo->email );
 		}
 
-		if ( $shouldJoinUser && !is_null( $joinUser ) && $joinUser instanceof WP_User ) {
-			// If we are here, we have a potential join user
-			// Don't allow creation or assignation of user if the email is not verified, that would
-			// be hijacking
+		if ( is_object( $wp_user ) && $wp_user instanceof WP_User ) {
+			// WP user exists, check if we can join.
+			$user_id = $wp_user->ID;
 
-			if ( $ignore_unverified_email || $userinfo->email_verified ) {
-				$user_id = $joinUser->ID;
-			} else {
+			// Cannot join a DB connection user without a verified email.
+			if ( $is_db_connection && ! $email_verified ) {
 				throw new WP_Auth0_EmailNotVerifiedException( $userinfo, $token );
 			}
 
-		} elseif ( $allow_signup ) {
+			// If the user has a different Auth0 ID, we cannot join it.
+			$current_auth0_id = self::get_meta( $user_id, 'auth0_id' );
+			if ( ! empty( $current_auth0_id ) && $auth0_sub !== $current_auth0_id ) {
+				throw new WP_Auth0_CouldNotCreateUserException( __( 'There is a user with the same email.', 'wp-auth0' ) );
+			}
+		} elseif ( $this->a0_options->is_wp_registration_enabled() || $this->a0_options->get( 'auto_provisioning' ) ) {
+			// WP user does not exist and registration is allowed.
+			$user_id = WP_Auth0_Users::create_user( $userinfo );
 
-			// If we are here, we need to create the user
-			$user_id = WP_Auth0_Users::create_user( $userinfo, $role );
-
-			// Check if user was created
-
+			// Check if user was created.
 			if ( is_wp_error( $user_id ) ) {
 				throw new WP_Auth0_CouldNotCreateUserException( $user_id->get_error_message() );
-			}elseif ( $user_id == -2 ) {
-				$msg = __( 'Could not create user. The registration process were rejected. Please verify that your account is whitelisted for this system. Please contact your site’s administrator.', 'wp-auth0' );
-				
-				throw new WP_Auth0_CouldNotCreateUserException( $msg );
-			}elseif ( $user_id <0 ) {
+			} elseif ( -2 === $user_id ) {
+				// Registration rejected by wpa0_should_create_user filter in WP_Auth0_Users::create_user().
+				throw new WP_Auth0_CouldNotCreateUserException( __( 'Registration rejected.', 'wp-auth0' ) );
+			} elseif ( $user_id < 0 ) {
+				// Registration failed for another reason.
 				throw new WP_Auth0_CouldNotCreateUserException();
 			}
-		} elseif ( ! $allow_signup ) {
+		} else {
+			// Signup is not allowed.
 			throw new WP_Auth0_RegistrationNotEnabledException();
 		}
 
-		// If we are here we should have a valid $user_id with a new user or an existing one
-		// log him in, and update the auth0_user table
 		$this->update_auth0_object( $user_id, $userinfo );
-
 		return $user_id;
 	}
 
+	/**
+	 * Look for and return a user with an Auth0 ID
+	 *
+	 * @param string $id - An Auth0 user ID, like "provider|id".
+	 *
+	 * @return null|WP_User
+	 */
 	public function find_auth0_user( $id ) {
 		global $wpdb;
 
-		$query = array( 
-  		'meta_key' => $wpdb->prefix.'auth0_id',
-  		'meta_value' => $id,
-  		'blog_id' => 0,
-  	);
+		if ( empty( $id ) ) {
+			WP_Auth0_ErrorLog::insert_error( __METHOD__, __( 'Empty user id', 'wp-auth0' ) );
 
-		$users = get_users( $query ); 
-
-		if ( $users instanceof WP_Error ) {
-			WP_Auth0_ErrorManager::insert_auth0_error( '_find_auth0_user', $userRow );
 			return null;
 		}
 
-		if (!empty($users)) {
-			return $users[0];
+		/**
+		 * Short-circuits the user query below.
+		 *
+		 * Returning a WP_User object will stop the method here and use the returned user.
+		 *
+		 * @param string $id The Auth0 ID.
+		 */
+		$check = apply_filters( 'find_auth0_user', null, $id );
+		if ( $check instanceof WP_User ) {
+			return $check;
 		}
 
-		return null;
+		$query = [
+			// Limiting the returned number and this happens on login so some delay is acceptable.
+			// phpcs:ignore WordPress.DB.SlowDBQuery
+			'meta_key'   => $wpdb->prefix . 'auth0_id',
+			// phpcs:ignore WordPress.DB.SlowDBQuery
+			'meta_value' => $id,
+			'number'     => 1,
+			'blog_id'    => 0,
+		];
+
+		$users = get_users( $query );
+
+		if ( $users === [] ) {
+			WP_Auth0_ErrorLog::insert_error( __METHOD__ . ' => get_users() ', __( 'User not found', 'wp-auth0' ) );
+			return null;
+		}
+
+		return ! empty( $users[0] ) ? $users[0] : null;
 	}
 
+	/**
+	 * Update all Auth0 meta fields for a WordPress user.
+	 *
+	 * @param int      $user_id - WordPress user ID.
+	 * @param stdClass $userinfo - User profile object from Auth0.
+	 */
 	public function update_auth0_object( $user_id, $userinfo ) {
-		global $wpdb;
-		update_user_meta( $user_id, $wpdb->prefix.'auth0_id', ( isset( $userinfo->user_id ) ? $userinfo->user_id : $userinfo->sub )); 
-		update_user_meta( $user_id, $wpdb->prefix.'auth0_obj', WP_Auth0_Serializer::serialize( $userinfo )); 
-		update_user_meta( $user_id, $wpdb->prefix.'last_update', date( 'c' ) ); 
+		$auth0_user_id = isset( $userinfo->user_id ) ? $userinfo->user_id : $userinfo->sub;
+		self::update_meta( $user_id, 'auth0_id', $auth0_user_id );
+
+		$userinfo_encoded = WP_Auth0_Serializer::serialize( $userinfo );
+		$userinfo_encoded = wp_slash( $userinfo_encoded );
+		self::update_meta( $user_id, 'auth0_obj', $userinfo_encoded );
+
+		self::update_meta( $user_id, 'last_update', date( 'c' ) );
 	}
 
-	public function delete_auth0_object( $user_id ) {
+	/**
+	 * Get a user's Auth0 meta data.
+	 *
+	 * @param integer $user_id - WordPress user ID.
+	 * @param string  $key - Usermeta key to get.
+	 *
+	 * @return mixed
+	 *
+	 * @since 3.8.0
+	 */
+	public static function get_meta( $user_id, $key ) {
+
+		/**
+		 * Short circuits the return value of the Auth0 user meta field.
+		 *
+		 * Returning a non null value will stop the method here and use the returned value.
+		 *
+		 * @param integer $user_id The user ID.
+		 * @param string  $key     The meta key.
+		 */
+		$check = apply_filters( 'auth0_get_meta', null, $user_id, $key );
+		if ( $check !== null ) {
+			return $check;
+		}
+
 		global $wpdb;
-		delete_user_meta( $user_id, $wpdb->prefix.'auth0_id' ); 
-		delete_user_meta( $user_id, $wpdb->prefix.'auth0_obj' ); 
-		delete_user_meta( $user_id, $wpdb->prefix.'last_update' ); 
+		return get_user_meta( $user_id, $wpdb->prefix . $key, true );
 	}
 
+	/**
+	 * Update a user's Auth0 meta data.
+	 *
+	 * @param integer $user_id - WordPress user ID.
+	 * @param string  $key - Usermeta key to update.
+	 * @param mixed   $value - Usermeta value to use.
+	 *
+	 * @return int|bool
+	 *
+	 * @since 3.11.0
+	 */
+	public static function update_meta( $user_id, $key, $value ) {
+
+		/**
+		 * Short circuits updating a user's Auth0 meta values.
+		 *
+		 * Returning a non null value will stop the method here.
+		 * The returned value is a boolean indicating whether or not the update was successful.
+		 *
+		 * @param integer $user_id The user ID.
+		 * @param string  $key     The meta key.
+		 */
+		$check = apply_filters( 'auth0_update_meta', null, $user_id, $key );
+		if ( $check !== null ) {
+			return (bool) $check;
+		}
+
+		global $wpdb;
+		return update_user_meta( $user_id, $wpdb->prefix . $key, $value );
+	}
+
+	/**
+	 * Delete a user's Auth0 meta data.
+	 *
+	 * @param integer $user_id - WordPress user ID.
+	 * @param string  $key - Usermeta key to delete.
+	 *
+	 * @return bool
+	 *
+	 * @since 3.11.0
+	 */
+	public static function delete_meta( $user_id, $key ) {
+
+		/**
+		 * Short circuits deleting a user's Auth0 meta values.
+		 *
+		 * Returning a non null value will stop the method here.
+		 * The returned value is a boolean indicating whether or not the deletion was successful.
+		 *
+		 * @param integer $user_id The user ID.
+		 * @param string  $key     The meta key.
+		 */
+		$check = apply_filters( 'auth0_delete_meta', null, $user_id, $key );
+		if ( $check !== null ) {
+			return (bool) $check;
+		}
+		global $wpdb;
+		return delete_user_meta( $user_id, $wpdb->prefix . $key );
+	}
 }

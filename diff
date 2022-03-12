@@ -1,0 +1,456 @@
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+old mode 100755
+new mode 100644
+diff --git a/LICENSE b/LICENSE
+old mode 100755
+new mode 100644
+diff --git a/README.md b/README.md
+old mode 100755
+new mode 100644
+diff --git a/WP_Auth0.php b/WP_Auth0.php
+old mode 100755
+new mode 100644
+index 3cab0dc..8a05c4a
+--- a/WP_Auth0.php
++++ b/WP_Auth0.php
+@@ -199,7 +199,6 @@ class WP_Auth0 {
+ 		$qvars[] = 'a0_action';
+ 		$qvars[] = 'auth0';
+ 		$qvars[] = 'code';
+-		$qvars[] = 'state';
+ 		return $qvars;
+ 	}
+ 
+diff --git a/account_cleanup/composer.json b/account_cleanup/composer.json
+old mode 100755
+new mode 100644
+diff --git a/account_cleanup/composer.lock b/account_cleanup/composer.lock
+old mode 100755
+new mode 100644
+diff --git a/account_cleanup/main.php b/account_cleanup/main.php
+old mode 100755
+new mode 100644
+diff --git a/assets/bootstrap/js/bootstrap.js b/assets/bootstrap/js/bootstrap.js
+old mode 100755
+new mode 100644
+diff --git a/assets/bootstrap/js/bootstrap.min.js b/assets/bootstrap/js/bootstrap.min.js
+old mode 100755
+new mode 100644
+diff --git a/assets/css/amplificator.css b/assets/css/amplificator.css
+old mode 100755
+new mode 100644
+diff --git a/assets/css/dashboard.css b/assets/css/dashboard.css
+old mode 100755
+new mode 100644
+diff --git a/assets/css/initial-setup.css b/assets/css/initial-setup.css
+old mode 100755
+new mode 100644
+diff --git a/assets/css/initial-setup/main.styl b/assets/css/initial-setup/main.styl
+old mode 100755
+new mode 100644
+diff --git a/assets/css/initial-setup/partials/_colors.styl b/assets/css/initial-setup/partials/_colors.styl
+old mode 100755
+new mode 100644
+diff --git a/assets/css/initial-setup/partials/_fonts.styl b/assets/css/initial-setup/partials/_fonts.styl
+old mode 100755
+new mode 100644
+diff --git a/assets/css/initial-setup/partials/_logos.styl b/assets/css/initial-setup/partials/_logos.styl
+old mode 100755
+new mode 100644
+diff --git a/assets/css/login.css b/assets/css/login.css
+old mode 100755
+new mode 100644
+diff --git a/assets/img/a0icon.png b/assets/img/a0icon.png
+old mode 100755
+new mode 100644
+diff --git a/assets/img/initial-setup/effortless-employee-access.svg b/assets/img/initial-setup/effortless-employee-access.svg
+old mode 100755
+new mode 100644
+diff --git a/assets/img/initial-setup/simple-end-users-login.svg b/assets/img/initial-setup/simple-end-users-login.svg
+old mode 100755
+new mode 100644
+diff --git a/assets/img/rates/01.svg b/assets/img/rates/01.svg
+old mode 100755
+new mode 100644
+diff --git a/assets/img/rates/02.svg b/assets/img/rates/02.svg
+old mode 100755
+new mode 100644
+diff --git a/assets/img/rates/03.svg b/assets/img/rates/03.svg
+old mode 100755
+new mode 100644
+diff --git a/assets/img/rates/04.svg b/assets/img/rates/04.svg
+old mode 100755
+new mode 100644
+diff --git a/assets/img/rates/05.svg b/assets/img/rates/05.svg
+old mode 100755
+new mode 100644
+diff --git a/assets/js/amplificator.js b/assets/js/amplificator.js
+old mode 100755
+new mode 100644
+diff --git a/assets/lib/async.min.js b/assets/lib/async.min.js
+old mode 100755
+new mode 100644
+diff --git a/assets/lib/d3/d3.js b/assets/lib/d3/d3.js
+old mode 100755
+new mode 100644
+diff --git a/assets/lib/d3/d3.min.js b/assets/lib/d3/d3.min.js
+old mode 100755
+new mode 100644
+diff --git a/assets/lib/dualdimentionbars.js b/assets/lib/dualdimentionbars.js
+old mode 100755
+new mode 100644
+diff --git a/assets/lib/lodash.min.js b/assets/lib/lodash.min.js
+old mode 100755
+new mode 100644
+diff --git a/assets/lib/markerclusterer.js b/assets/lib/markerclusterer.js
+old mode 100755
+new mode 100644
+diff --git a/assets/lib/parallelcoordinates.js b/assets/lib/parallelcoordinates.js
+old mode 100755
+new mode 100644
+diff --git a/banner-1544x500.png b/banner-1544x500.png
+old mode 100755
+new mode 100644
+diff --git a/banner-772x250.png b/banner-772x250.png
+old mode 100755
+new mode 100644
+diff --git a/composer.json b/composer.json
+old mode 100755
+new mode 100644
+diff --git a/composer.lock b/composer.lock
+old mode 100755
+new mode 100644
+diff --git a/icon-128x128.png b/icon-128x128.png
+old mode 100755
+new mode 100644
+diff --git a/icon-256x256.png b/icon-256x256.png
+old mode 100755
+new mode 100644
+diff --git a/lib/WP_Auth0_Amplificator.php b/lib/WP_Auth0_Amplificator.php
+old mode 100755
+new mode 100644
+diff --git a/lib/WP_Auth0_Api_Operations.php b/lib/WP_Auth0_Api_Operations.php
+old mode 100755
+new mode 100644
+diff --git a/lib/WP_Auth0_CustomDBLib.php b/lib/WP_Auth0_CustomDBLib.php
+old mode 100755
+new mode 100644
+diff --git a/lib/WP_Auth0_DBManager.php b/lib/WP_Auth0_DBManager.php
+old mode 100755
+new mode 100644
+diff --git a/lib/WP_Auth0_EditProfile.php b/lib/WP_Auth0_EditProfile.php
+old mode 100755
+new mode 100644
+diff --git a/lib/WP_Auth0_Embed_Widget.php b/lib/WP_Auth0_Embed_Widget.php
+old mode 100755
+new mode 100644
+diff --git a/lib/WP_Auth0_ErrorLog.php b/lib/WP_Auth0_ErrorLog.php
+old mode 100755
+new mode 100644
+diff --git a/lib/WP_Auth0_ErrorManager.php b/lib/WP_Auth0_ErrorManager.php
+old mode 100755
+new mode 100644
+diff --git a/lib/WP_Auth0_Export_Users.php b/lib/WP_Auth0_Export_Users.php
+old mode 100755
+new mode 100644
+diff --git a/lib/WP_Auth0_Import_Settings.php b/lib/WP_Auth0_Import_Settings.php
+old mode 100755
+new mode 100644
+diff --git a/lib/WP_Auth0_Ip_Check.php b/lib/WP_Auth0_Ip_Check.php
+old mode 100755
+new mode 100644
+diff --git a/lib/WP_Auth0_Lock10_Options.php b/lib/WP_Auth0_Lock10_Options.php
+old mode 100755
+new mode 100644
+diff --git a/lib/WP_Auth0_Lock_Options.php b/lib/WP_Auth0_Lock_Options.php
+old mode 100755
+new mode 100644
+diff --git a/lib/WP_Auth0_LoginManager.php b/lib/WP_Auth0_LoginManager.php
+index deb351d..4acf116 100755
+--- a/lib/WP_Auth0_LoginManager.php
++++ b/lib/WP_Auth0_LoginManager.php
+@@ -281,8 +281,6 @@ class WP_Auth0_LoginManager {
+         } else {
+           if ( null !== $stateFromGet && isset( $stateFromGet->redirect_to ) ) {
+             $redirectURL = $stateFromGet->redirect_to;
+-          } elseif ( !empty($state) ) {
+-            $redirectURL = $state;
+           } else {
+             $redirectURL = $this->a0_options->get( 'default_login_redirection' );
+           }
+diff --git a/lib/WP_Auth0_Metrics.php b/lib/WP_Auth0_Metrics.php
+old mode 100755
+new mode 100644
+diff --git a/lib/WP_Auth0_Options_Generic.php b/lib/WP_Auth0_Options_Generic.php
+old mode 100755
+new mode 100644
+diff --git a/lib/WP_Auth0_Popup_Widget.php b/lib/WP_Auth0_Popup_Widget.php
+old mode 100755
+new mode 100644
+diff --git a/lib/WP_Auth0_Referer_Check.php b/lib/WP_Auth0_Referer_Check.php
+old mode 100755
+new mode 100644
+diff --git a/lib/WP_Auth0_RulesLib.php b/lib/WP_Auth0_RulesLib.php
+old mode 100755
+new mode 100644
+diff --git a/lib/WP_Auth0_Serializer.php b/lib/WP_Auth0_Serializer.php
+old mode 100755
+new mode 100644
+diff --git a/lib/WP_Auth0_Settings_Section.php b/lib/WP_Auth0_Settings_Section.php
+old mode 100755
+new mode 100644
+diff --git a/lib/WP_Auth0_SocialAmplification_Widget.php b/lib/WP_Auth0_SocialAmplification_Widget.php
+old mode 100755
+new mode 100644
+diff --git a/lib/WP_Auth0_UserProfile.php b/lib/WP_Auth0_UserProfile.php
+old mode 100755
+new mode 100644
+diff --git a/lib/WP_Auth0_Users.php b/lib/WP_Auth0_Users.php
+old mode 100755
+new mode 100644
+diff --git a/lib/WP_Auth0_UsersRepo.php b/lib/WP_Auth0_UsersRepo.php
+old mode 100755
+new mode 100644
+diff --git a/lib/WP_Auth0_WooCommerceOverrides.php b/lib/WP_Auth0_WooCommerceOverrides.php
+old mode 100755
+new mode 100644
+diff --git a/lib/admin/WP_Auth0_Admin_Advanced.php b/lib/admin/WP_Auth0_Admin_Advanced.php
+old mode 100755
+new mode 100644
+diff --git a/lib/admin/WP_Auth0_Admin_Appearance.php b/lib/admin/WP_Auth0_Admin_Appearance.php
+old mode 100755
+new mode 100644
+diff --git a/lib/admin/WP_Auth0_Admin_Dashboard.php b/lib/admin/WP_Auth0_Admin_Dashboard.php
+old mode 100755
+new mode 100644
+diff --git a/lib/admin/WP_Auth0_Admin_Features.php b/lib/admin/WP_Auth0_Admin_Features.php
+old mode 100755
+new mode 100644
+diff --git a/lib/admin/WP_Auth0_Admin_Generic.php b/lib/admin/WP_Auth0_Admin_Generic.php
+old mode 100755
+new mode 100644
+diff --git a/lib/dashboard-widgets/WP_Auth0_Dashboard_Plugins_Age.php b/lib/dashboard-widgets/WP_Auth0_Dashboard_Plugins_Age.php
+old mode 100755
+new mode 100644
+diff --git a/lib/dashboard-widgets/WP_Auth0_Dashboard_Plugins_Gender.php b/lib/dashboard-widgets/WP_Auth0_Dashboard_Plugins_Gender.php
+old mode 100755
+new mode 100644
+diff --git a/lib/dashboard-widgets/WP_Auth0_Dashboard_Plugins_Generic.php b/lib/dashboard-widgets/WP_Auth0_Dashboard_Plugins_Generic.php
+old mode 100755
+new mode 100644
+diff --git a/lib/dashboard-widgets/WP_Auth0_Dashboard_Plugins_IdP.php b/lib/dashboard-widgets/WP_Auth0_Dashboard_Plugins_IdP.php
+old mode 100755
+new mode 100644
+diff --git a/lib/dashboard-widgets/WP_Auth0_Dashboard_Plugins_Income.php b/lib/dashboard-widgets/WP_Auth0_Dashboard_Plugins_Income.php
+old mode 100755
+new mode 100644
+diff --git a/lib/dashboard-widgets/WP_Auth0_Dashboard_Plugins_Location.php b/lib/dashboard-widgets/WP_Auth0_Dashboard_Plugins_Location.php
+old mode 100755
+new mode 100644
+diff --git a/lib/dashboard-widgets/WP_Auth0_Dashboard_Plugins_Signups.php b/lib/dashboard-widgets/WP_Auth0_Dashboard_Plugins_Signups.php
+old mode 100755
+new mode 100644
+diff --git a/lib/dashboard-widgets/WP_Auth0_Dashboard_Widgets.php b/lib/dashboard-widgets/WP_Auth0_Dashboard_Widgets.php
+old mode 100755
+new mode 100644
+diff --git a/lib/exceptions/WP_Auth0_BeforeLoginException.php b/lib/exceptions/WP_Auth0_BeforeLoginException.php
+old mode 100755
+new mode 100644
+diff --git a/lib/exceptions/WP_Auth0_CouldNotCreateUserException.php b/lib/exceptions/WP_Auth0_CouldNotCreateUserException.php
+old mode 100755
+new mode 100644
+diff --git a/lib/exceptions/WP_Auth0_EmailNotVerifiedException.php b/lib/exceptions/WP_Auth0_EmailNotVerifiedException.php
+old mode 100755
+new mode 100644
+diff --git a/lib/exceptions/WP_Auth0_LoginFlowValidationException.php b/lib/exceptions/WP_Auth0_LoginFlowValidationException.php
+old mode 100755
+new mode 100644
+diff --git a/lib/exceptions/WP_Auth0_RegistrationNotEnabledException.php b/lib/exceptions/WP_Auth0_RegistrationNotEnabledException.php
+old mode 100755
+new mode 100644
+diff --git a/lib/initial-setup/WP_Auth0_InitialSetup.php b/lib/initial-setup/WP_Auth0_InitialSetup.php
+old mode 100755
+new mode 100644
+diff --git a/lib/initial-setup/WP_Auth0_InitialSetup_AdminUser.php b/lib/initial-setup/WP_Auth0_InitialSetup_AdminUser.php
+old mode 100755
+new mode 100644
+diff --git a/lib/initial-setup/WP_Auth0_InitialSetup_ConnectionProfile.php b/lib/initial-setup/WP_Auth0_InitialSetup_ConnectionProfile.php
+old mode 100755
+new mode 100644
+diff --git a/lib/initial-setup/WP_Auth0_InitialSetup_Connections.php b/lib/initial-setup/WP_Auth0_InitialSetup_Connections.php
+old mode 100755
+new mode 100644
+diff --git a/lib/initial-setup/WP_Auth0_InitialSetup_Consent.php b/lib/initial-setup/WP_Auth0_InitialSetup_Consent.php
+old mode 100755
+new mode 100644
+diff --git a/lib/initial-setup/WP_Auth0_InitialSetup_End.php b/lib/initial-setup/WP_Auth0_InitialSetup_End.php
+old mode 100755
+new mode 100644
+diff --git a/lib/initial-setup/WP_Auth0_InitialSetup_EnterpriseConnection.php b/lib/initial-setup/WP_Auth0_InitialSetup_EnterpriseConnection.php
+old mode 100755
+new mode 100644
+diff --git a/lib/initial-setup/WP_Auth0_InitialSetup_Migration.php b/lib/initial-setup/WP_Auth0_InitialSetup_Migration.php
+old mode 100755
+new mode 100644
+diff --git a/lib/initial-setup/WP_Auth0_InitialSetup_Rules.php b/lib/initial-setup/WP_Auth0_InitialSetup_Rules.php
+old mode 100755
+new mode 100644
+diff --git a/lib/initial-setup/WP_Auth0_InitialSetup_Signup.php b/lib/initial-setup/WP_Auth0_InitialSetup_Signup.php
+old mode 100755
+new mode 100644
+diff --git a/lib/php-jwt/Authentication/JWT.php b/lib/php-jwt/Authentication/JWT.php
+old mode 100755
+new mode 100644
+diff --git a/lib/php-jwt/Exceptions/BeforeValidException.php b/lib/php-jwt/Exceptions/BeforeValidException.php
+old mode 100755
+new mode 100644
+diff --git a/lib/php-jwt/Exceptions/ExpiredException.php b/lib/php-jwt/Exceptions/ExpiredException.php
+old mode 100755
+new mode 100644
+diff --git a/lib/php-jwt/Exceptions/SignatureInvalidException.php b/lib/php-jwt/Exceptions/SignatureInvalidException.php
+old mode 100755
+new mode 100644
+diff --git a/lib/php-jwt/LICENSE b/lib/php-jwt/LICENSE
+old mode 100755
+new mode 100644
+diff --git a/lib/php-jwt/README.md b/lib/php-jwt/README.md
+old mode 100755
+new mode 100644
+diff --git a/lib/php-jwt/composer.json b/lib/php-jwt/composer.json
+old mode 100755
+new mode 100644
+diff --git a/lib/php-jwt/package.xml b/lib/php-jwt/package.xml
+old mode 100755
+new mode 100644
+diff --git a/lib/php-jwt/phpunit.xml.dist b/lib/php-jwt/phpunit.xml.dist
+old mode 100755
+new mode 100644
+diff --git a/lib/php-jwt/tests/JWTTest.php b/lib/php-jwt/tests/JWTTest.php
+old mode 100755
+new mode 100644
+diff --git a/lib/php-jwt/tests/autoload.php.dist b/lib/php-jwt/tests/autoload.php.dist
+old mode 100755
+new mode 100644
+diff --git a/lib/php-jwt/tests/bootstrap.php b/lib/php-jwt/tests/bootstrap.php
+old mode 100755
+new mode 100644
+diff --git a/plugins_info.json b/plugins_info.json
+old mode 100755
+new mode 100644
+diff --git a/plugins_info_original.json b/plugins_info_original.json
+old mode 100755
+new mode 100644
+diff --git a/readme.txt b/readme.txt
+old mode 100755
+new mode 100644
+diff --git a/screenshot-1.png b/screenshot-1.png
+old mode 100755
+new mode 100644
+diff --git a/screenshot-2.png b/screenshot-2.png
+old mode 100755
+new mode 100644
+diff --git a/screenshot-3.png b/screenshot-3.png
+old mode 100755
+new mode 100644
+diff --git a/screenshot-4.png b/screenshot-4.png
+old mode 100755
+new mode 100644
+diff --git a/screenshot-5.png b/screenshot-5.png
+old mode 100755
+new mode 100644
+diff --git a/screenshot-6.png b/screenshot-6.png
+old mode 100755
+new mode 100644
+diff --git a/screenshot-7.png b/screenshot-7.png
+old mode 100755
+new mode 100644
+diff --git a/templates/a0-error-log.php b/templates/a0-error-log.php
+old mode 100755
+new mode 100644
+diff --git a/templates/a0-widget-amplificator.php b/templates/a0-widget-amplificator.php
+old mode 100755
+new mode 100644
+diff --git a/templates/a0-widget-setup-form.php b/templates/a0-widget-setup-form.php
+old mode 100755
+new mode 100644
+diff --git a/templates/auth0-login-form-lock10.php b/templates/auth0-login-form-lock10.php
+old mode 100755
+new mode 100644
+diff --git a/templates/auth0-login-form.php b/templates/auth0-login-form.php
+old mode 100755
+new mode 100644
+diff --git a/templates/auth0-singlelogout-handler.php b/templates/auth0-singlelogout-handler.php
+old mode 100755
+new mode 100644
+diff --git a/templates/auth0-sso-handler-lock10.php b/templates/auth0-sso-handler-lock10.php
+old mode 100755
+new mode 100644
+diff --git a/templates/auth0-sso-handler.php b/templates/auth0-sso-handler.php
+old mode 100755
+new mode 100644
+diff --git a/templates/back-to-auth0.php b/templates/back-to-auth0.php
+old mode 100755
+new mode 100644
+diff --git a/templates/configure-jwt-auth.php b/templates/configure-jwt-auth.php
+old mode 100755
+new mode 100644
+diff --git a/templates/error-msg.php b/templates/error-msg.php
+old mode 100755
+new mode 100644
+diff --git a/templates/export-users.php b/templates/export-users.php
+old mode 100755
+new mode 100644
+diff --git a/templates/import_settings.php b/templates/import_settings.php
+old mode 100755
+new mode 100644
+diff --git a/templates/initial-setup/admin-creation.php b/templates/initial-setup/admin-creation.php
+old mode 100755
+new mode 100644
+diff --git a/templates/initial-setup/connection_profile.php b/templates/initial-setup/connection_profile.php
+old mode 100755
+new mode 100644
+diff --git a/templates/initial-setup/connections.php b/templates/initial-setup/connections.php
+old mode 100755
+new mode 100644
+diff --git a/templates/initial-setup/consent-disclaimer.php b/templates/initial-setup/consent-disclaimer.php
+old mode 100755
+new mode 100644
+diff --git a/templates/initial-setup/data-migration.php b/templates/initial-setup/data-migration.php
+old mode 100755
+new mode 100644
+diff --git a/templates/initial-setup/end.php b/templates/initial-setup/end.php
+old mode 100755
+new mode 100644
+diff --git a/templates/initial-setup/enterprise_connections.php b/templates/initial-setup/enterprise_connections.php
+old mode 100755
+new mode 100644
+diff --git a/templates/initial-setup/partials/header.php b/templates/initial-setup/partials/header.php
+old mode 100755
+new mode 100644
+diff --git a/templates/initial-setup/partials/steps.php b/templates/initial-setup/partials/steps.php
+old mode 100755
+new mode 100644
+diff --git a/templates/initial-setup/rules.php b/templates/initial-setup/rules.php
+old mode 100755
+new mode 100644
+diff --git a/templates/initial-setup/signup.php b/templates/initial-setup/signup.php
+old mode 100755
+new mode 100644
+diff --git a/templates/login-interim.php b/templates/login-interim.php
+old mode 100755
+new mode 100644
+diff --git a/templates/settings.php b/templates/settings.php
+old mode 100755
+new mode 100644
+diff --git a/templates/verify-email.php b/templates/verify-email.php
+old mode 100755
+new mode 100644
+diff --git a/templates/wp-login-form.php b/templates/wp-login-form.php
+old mode 100755
+new mode 100644
+diff --git a/webtask/ping.js b/webtask/ping.js
+old mode 100755
+new mode 100644
+diff --git a/webtask/slack-notifier.js b/webtask/slack-notifier.js
+old mode 100755
+new mode 100644

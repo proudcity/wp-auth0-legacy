@@ -1,559 +1,673 @@
 <?php
+/**
+ * WP_Auth0_LoginManager class
+ *
+ * @package WordPress
+ * @subpackage WP-Auth0
+ * @since 2.0.0
+ */
 
+/**
+ * Handles login callbacks and auto-login redirecting
+ *
+ * @since 2.0.0
+ */
 class WP_Auth0_LoginManager {
 
-  protected $a0_options;
-  protected $default_role;
-  protected $ignore_unverified_email;
-  protected $users_repo;
-
-  public function __construct( WP_Auth0_UsersRepo $users_repo, $a0_options = null, $default_role = null, $ignore_unverified_email = false ) {
-
-    $this->default_role = $default_role;
-    $this->ignore_unverified_email = $ignore_unverified_email;
-    $this->users_repo = $users_repo;
-
-    if ( $a0_options instanceof WP_Auth0_Options ) {
-      $this->a0_options = $a0_options;
-    } else {
-      $this->a0_options = WP_Auth0_Options::Instance();
-    }
-
-  }
-
-  public function init() {
-    add_action( 'wp_logout', array( $this, 'logout' ) );
-    add_action( 'wp_login', array( $this, 'end_session' ) );
-    add_action( 'login_init', array( $this, 'login_auto' ) );
-    add_action( 'template_redirect', array( $this, 'init_auth0' ), 1 );
-    //add_action( 'wp_footer', array( $this, 'auth0_sso_footer' ) );
-    add_action( 'wp_footer', array( $this, 'auth0_singlelogout_footer' ) );
-    add_filter( 'login_message', array( $this, 'auth0_sso_footer' ) );
-  }
-
-  public function auth0_sso_footer( $previous_html ) {
-
-    echo $previous_html;
-
-    if ( is_user_logged_in() ) {
-      return;
-    }
-
-    $lock_options = new WP_Auth0_Lock10_Options();
-
-    $sso = $lock_options->get_sso();
-
-    if ( $sso ) {
-      $client_id = $lock_options->get_client_id();
-      $domain = $lock_options->get_domain();
-      $cdn = $this->a0_options->get('auth0js-cdn');
-
-      wp_enqueue_script( 'wpa0_auth0js', $cdn );
-      include WPA0_PLUGIN_DIR . 'templates/auth0-sso-handler-lock10.php';
-    }
-  }
-  public function auth0_singlelogout_footer( $previous_html ) {
-
-    echo $previous_html;
-
-    if ( !is_user_logged_in() ) {
-      return;
-    }
-
-    $singlelogout = $this->a0_options->get( 'singlelogout' );
-
-    if ( ! $singlelogout ) {
-      return;
-    }
-
-    $current_user = get_currentauth0user();
-    $user_profile = $current_user->auth0_obj;
-
-    if ( empty( $user_profile ) ) {
-      return;
-    }
-
-    $lock_options = new WP_Auth0_Lock10_Options();
-    $cdn = $this->a0_options->get('auth0js-cdn');
-    $client_id = $this->a0_options->get( 'client_id' );
-    $domain = $this->a0_options->get( 'domain' );
-    $logout_url = wp_logout_url( get_permalink() ) . '&SLO=1';
-
-    include WPA0_PLUGIN_DIR . 'templates/auth0-singlelogout-handler.php';
-  }
-
-  public function logout() {
-    $this->end_session();
-
-    $sso = $this->a0_options->get( 'sso' );
-    $slo = $this->a0_options->get( 'singlelogout' );
-    $client_id = $this->a0_options->get( 'client_id' );
-    $auto_login = absint( $this->a0_options->get( 'auto_login' ) );
-
-    if ( $slo && isset( $_REQUEST['SLO'] ) ) {
-      $redirect_to = $_REQUEST['redirect_to'];
-      wp_redirect( $redirect_to );
-      die();
-    }
-
-    if ( $sso ) {
-      $redirect_to = home_url();
-      wp_redirect( 'https://' . $this->a0_options->get( 'domain' ) . '/v2/logout?federated&returnTo=' . urlencode( $redirect_to ) . '&client_id='.$client_id.'&auth0Client=' . base64_encode( json_encode( WP_Auth0_Api_Client::get_info_headers() ) ) );
-      die();
-    }
-
-    if ( $auto_login ) {
-      wp_redirect( home_url() );
-      die();
-    }
-  }
-
-  public function end_session() {
-    if ( session_id() ) {
-      session_destroy();
-    }
-  }
-
-  public function login_auto() {
-    $auto_login = absint( $this->a0_options->get( 'auto_login' ) );
-
-    if ( $auto_login && ( ! isset( $_GET['action'] ) || 'logout' !== $_GET['action'] ) && ! isset( $_GET['wle'] ) ) {
-
-      if ( strtolower( $_SERVER['REQUEST_METHOD'] ) !== 'get' ) {
-        return;
-      }
-
-      if ( $this->query_vars( 'auth0' ) !== null ) {
-        return;
-      }
-
-      $lock_options = new WP_Auth0_Lock10_Options();
-      $options = $lock_options->get_lock_options();
-
-      $stateObj = array( 'interim' => false, 'uuid' => uniqid() );
-      if ( isset( $_GET['redirect_to'] ) ) {
-        $stateObj['redirect_to'] = $_GET['redirect_to'];
-      }
-      $state = base64_encode( json_encode( $stateObj ) );
-
-      $connection = apply_filters( 'auth0_get_auto_login_connection', $this->a0_options->get( 'auto_login_method' ) );
-
-      $response_type = $lock_options->get_auth0_implicit_workflow() ? 'id_token' : 'code';
-
-      // Create the link to log in.
-      $login_url = "https://". $this->a0_options->get( 'domain' ) .
-        "/authorize?".
-        "scope=".urlencode($options["auth"]["params"]["scope"]) .
-        "&response_type=" . $response_type .
-        "&client_id=".$this->a0_options->get( 'client_id' ) .
-        "&redirect_uri=" . $options["auth"]["redirectUrl"] .
-        "&state=" . urlencode( $state ).
-        "&nonce=nonce" . // TODO add full nonce support
-        "&connection=". trim($connection) .
-        "&auth0Client=" . WP_Auth0_Api_Client::get_info_headers();
-
-      wp_redirect( $login_url );
-      die();
-    }
-  }
-
-  public function init_auth0() {
-    global $wp_query;
-
-    if ( $this->query_vars( 'auth0' ) === null ) {
-      return;
-    }
-
-    try {
-      if ( $this->query_vars( 'auth0' ) === 'implicit' ) {
-        $this->implicit_login();
-      } else {
-        $this->redirect_login();
-      }
-    } catch (WP_Auth0_LoginFlowValidationException $e) {
-
-      $msg = __( 'There was a problem with your log in', 'wp-auth0' );
-      $msg .= ' '. $e->getMessage();
-      $msg .= '<br/><br/>';
-      $msg .= '<a href="' . wp_login_url() . '">' . __( '← Login', 'wp-auth0' ) . '</a>';
-      wp_die( $msg );
-
-    } catch (WP_Auth0_BeforeLoginException $e) {
-
-      $msg = __( 'You have logged in successfully, but there is a problem accessing this site', 'wp-auth0' );
-      $msg .= ' '. $e->getMessage();
-      $msg .= '<br/><br/>';
-      $msg .= '<a href="' . wp_logout_url() . '">' . __( '← Logout', 'wp-auth0' ) . '</a>';
-      wp_die( $msg );
-
-    } catch (Exception $e) {
-
-    }
-
-  }
-
-  public function redirect_login() {
-    global $wp_query;
-
-    if ( $this->query_vars( 'auth0' ) === null ) {
-      return;
-    }
-
-    if ( $this->query_vars( 'error_description' ) !== null && $this->query_vars( 'error_description' ) !== '' ) {
-      throw new WP_Auth0_LoginFlowValidationException( $this->query_vars( 'error_description' ) );
-    }
-
-    if ( $this->query_vars( 'error' ) !== null && trim( $this->query_vars( 'error' ) ) !== '' ) {
-      throw new WP_Auth0_LoginFlowValidationException( $this->query_vars( 'error' ) );
-    }
-
-    $code = $this->query_vars( 'code' );
-    $state = $this->query_vars( 'state' );
-
-    $stateFromGet = json_decode( base64_decode( $state ) );
-
-    $domain = $this->a0_options->get( 'domain' );
-
-    $client_id = $this->a0_options->get( 'client_id' );
-    $client_secret = $this->a0_options->get( 'client_secret' );
-
-    if ( empty( $client_id ) ) {
-      throw new WP_Auth0_LoginFlowValidationException( __( 'Error: Your Auth0 Client ID has not been entered in the Auth0 SSO plugin settings.', 'wp-auth0' ) );
-    }
-    if ( empty( $client_secret ) ) {
-      throw new WP_Auth0_LoginFlowValidationException( __( 'Error: Your Auth0 Client Secret has not been entered in the Auth0 SSO plugin settings.', 'wp-auth0' ) );
-    }
-    if ( empty( $domain ) ) {
-      throw new WP_Auth0_LoginFlowValidationException( __( 'Error: No Domain defined in Wordpress Administration!', 'wp-auth0' ) );
-    }
-
-    $response = WP_Auth0_Api_Client::get_token( $domain, $client_id, $client_secret, 'authorization_code', array(
-        'redirect_uri' => home_url(),
-        'code' => $code,
-      ) );
-
-    if ( $response instanceof WP_Error ) {
-      WP_Auth0_ErrorManager::insert_auth0_error( 'init_auth0_oauth/token', $response );
-
-      error_log( $response->get_error_message() );
-
-      throw new WP_Auth0_LoginFlowValidationException( $response->get_error_message() );
-    }
-
-    $data = json_decode( $response['body'] );
-
-    if ( isset( $data->access_token ) || isset( $data->id_token ) ) {
-      // Get the user information
-
-      if ( !isset( $data->id_token ) ) {
-        $data->id_token = null;
-        $response = WP_Auth0_Api_Client::get_user_info( $domain, $data->access_token );
-      } else {
-        try {
-          // grab the user ID from the id_token to call get_user
-          $decodedToken = JWT::decode( $data->id_token, $this->a0_options->get_client_secret_as_key(), array(  $this->a0_options->get_client_signing_algorithm() ) );
-        } catch (Exception $e) {
-          WP_Auth0_ErrorManager::insert_auth0_error('redirect_login/decode', $e->getMessage());
-          throw new WP_Auth0_LoginFlowValidationException(__('Error: There was an issue decoding the token, please review the Auth0 Plugin Error Log.', 'wp-auth0'));
-        }
-
-        // validate that this JWT was made for us
-        if ( $this->a0_options->get( 'client_id' ) !== $decodedToken->aud ) {
-          throw new Exception( 'This token is not intended for us.' );
-        }
-
-        $response = WP_Auth0_Api_Client::get_user( $domain, $data->id_token, $decodedToken->sub );
-      }
-
-      if ( $response instanceof WP_Error ) {
-        WP_Auth0_ErrorManager::insert_auth0_error( 'init_auth0_userinfo', $response );
-
-        error_log( $response->get_error_message() );
-
-        throw new WP_Auth0_LoginFlowValidationException( );
-      }
-
-      $userinfo = json_decode( $response['body'] );
-      if ( $this->login_user( $userinfo, $data->id_token, $data->access_token ) ) {
-        if ( null !== $stateFromGet && isset( $stateFromGet->interim ) && $stateFromGet->interim ) {
-          include WPA0_PLUGIN_DIR . 'templates/login-interim.php';
-          exit();
-        } else {
-          if ( null !== $stateFromGet && isset( $stateFromGet->redirect_to ) ) {
-            $redirectURL = $stateFromGet->redirect_to;
-          } elseif ( !empty($state) ) {
-            $redirectURL = $state;
-          } else {
-            $redirectURL = $this->a0_options->get( 'default_login_redirection' );
-          }
-
-          wp_safe_redirect( $redirectURL );
-        }
-      }
-    } elseif ( is_array( $response['response'] ) &&  401 === (int) $response['response']['code'] ) {
-
-      $error = new WP_Error( '401', 'auth/token response code: 401 Unauthorized' );
-
-      WP_Auth0_ErrorManager::insert_auth0_error( 'init_auth0_oauth/token', $error );
-
-      $msg = __( 'Error: the Client Secret configured on the Auth0 plugin is wrong. Make sure to copy the right one from the Auth0 dashboard.', 'wp-auth0' );
-
-      throw new WP_Auth0_LoginFlowValidationException( $msg );
-    } else {
-      $error = '';
-      $description = '';
-
-      if ( isset( $data->error ) ) {
-        $error = $data->error;
-      }
-      if ( isset( $data->error_description ) ) {
-        $description = $data->error_description;
-      }
-
-      if ( ! empty( $error ) || ! empty( $description ) ) {
-        $error = new WP_Error( $error, $description );
-        WP_Auth0_ErrorManager::insert_auth0_error( 'init_auth0_oauth/token', $error );
-      }
-      // Login failed!
-      wp_redirect( home_url() . '?message=' . $data->error_description );
-      //echo "Error logging in! Description received was:<br/>" . $data->error_description;
-    }
-    exit();
-  }
-
-  public function implicit_login() {
-
-    $token = $_POST['token'];
-    $stateFromGet = json_decode( base64_decode( $_POST['state'] ) );
-
-    $secret = $this->a0_options->get_client_secret_as_key();
-
-    try {
-      // Decode the user
-      $decodedToken = JWT::decode( $token, $secret, array(  $this->a0_options->get_client_signing_algorithm() ) );
-
-      // validate that this JWT was made for us
-      if ( $this->a0_options->get( 'client_id' ) !== $decodedToken->aud ) {
-        throw new Exception( 'This token is not intended for us.' );
-      }
-
-      $decodedToken->user_id = $decodedToken->sub;
-
-      if ( $this->login_user( $decodedToken, $token, null ) ) {
-        if ( null !== $stateFromGet && isset( $stateFromGet->interim ) && $stateFromGet->interim ) {
-          include WPA0_PLUGIN_DIR . 'templates/login-interim.php';
-          exit();
-        } else {
-          if ( null !== $stateFromGet && isset( $stateFromGet->redirect_to ) ) {
-            $redirectURL = $stateFromGet->redirect_to;
-          } else {
-            $redirectURL = $this->a0_options->get( 'default_login_redirection' );
-          }
-
-          wp_safe_redirect( $redirectURL );
-          exit;
-        }
-      }
-
-    } catch( UnexpectedValueException $e ) {
-      WP_Auth0_ErrorManager::insert_auth0_error( 'implicit_login', $e );
-
-      error_log( $e->getMessage() );
-
-      throw new WP_Auth0_LoginFlowValidationException( );
-    }
-  }
-
-  // Does all actions required to log the user in to wordpress, invoking hooks as necessary
-  // $user (stdClass): the WP user object, such as returned by get_user_by(...)
-  // $user_profile (stdClass): the Auth0 profile of the user
-  // $is_new (boolean): `true` if the user was created on Wordress, `false` if not.  Don't get confused with Auth0 registrations, this flag will tell you if a new user was created on the WordPress database.
-  // $id_token (string): the user's JWT
-  // $access_token (string): the user's access token.  It is not provided when using the **Implicit flow**.
-  private function do_login( $user, $userinfo, $is_new, $id_token, $access_token ) {
-    $remember_users_session = $this->a0_options->get( 'remember_users_session' );
-
-    // allow other hooks to run prior to login
-    // if something goes wrong with the login, they should throw an exception.
-    try {
-      do_action( 'auth0_before_login', $user );
-    }
-    catch ( Exception $e ) {
-      throw new WP_Auth0_BeforeLoginException( $e->getMessage() );
-    }
-
-    $secure_cookie = is_ssl();
-
-    /**
-     * Filters whether to use a secure sign-on cookie.
-     *
-     * @since 3.1.0
-     *
-     * @param bool  $secure_cookie Whether to use a secure sign-on cookie.
-     * @param array $credentials {
-     *     Array of entered sign-on data.
-     *
-     *     @type string $user_login    Username.
-     *     @type string $user_password Password entered.
-     *     @type bool   $remember      Whether to 'remember' the user. Increases the time
-     *                                 that the cookie will be kept. Default false.
-     * }
-     */
-    $secure_cookie = apply_filters( 'secure_signon_cookie', $secure_cookie, array(
-      "user_login" => $user->user_login,
-      "user_password" => null,
-      "remember" => $remember_users_session
-      )
-    );
-
-    //wp_set_current_user( $user->ID, $user->user_login );
-    wp_set_auth_cookie( $user->ID, $remember_users_session, $secure_cookie);
-    do_action( 'wp_login', $user->user_login, $user );
-    do_action( 'auth0_user_login' , $user->ID, $userinfo, $is_new, $id_token, $access_token );
-  }
-
-  // return true if login was successful, false otherwise
-  public function login_user( $userinfo, $id_token, $access_token ) {
-    // If the userinfo has no email or an unverified email, and in the options we require a verified email
-    // notify the user he cant login until he does so.
-    $requires_verified_email = $this->a0_options->get( 'requires_verified_email' );
-
-
-    if ( ! $this->ignore_unverified_email &&  1 == $requires_verified_email ) {
-      if ( empty( $userinfo->email ) ) {
-        $msg = __( 'This account does not have an email associated, as required by your site administrator.', 'wp-auth0' );
-
-        throw new WP_Auth0_LoginFlowValidationException( $msg );
-      }
-
-      if ( ! $userinfo->email_verified ) {
-        $this->dieWithVerifyEmail( $userinfo, $id_token );
-      }
-
-    }
-
-    // See if there is a user linked to the same auth0 user_id
-    if (isset($userinfo->identities)) {
-      foreach ($userinfo->identities as $identity) {
-        $user = $this->users_repo->find_auth0_user( "{$identity->provider}|{$identity->user_id}" );
-        if ($user) {
-          break;
-        }
-      }
-    } else {
-      $user = $this->users_repo->find_auth0_user( $userinfo->user_id );
-    }
-
-    $user = apply_filters( 'auth0_get_wp_user', $user, $userinfo );
-
-    if ( ! is_null( $user ) ) {
-      // User exists! Log in
-      if ( isset( $userinfo->email ) && $user->data->user_email !== $userinfo->email ) {
-
-        $description = $user->data->description;
-
-        if (empty($description)){
-          if (isset($userinfo->headline)) {
-            $description = $userinfo->headline;
-          }
-          if (isset($userinfo->description)) {
-            $description = $userinfo->description;
-          }
-          if (isset($userinfo->bio)) {
-            $description = $userinfo->bio;
-          }
-          if (isset($userinfo->about)) {
-            $description = $userinfo->about;
-          }
-        }
-
-        $user_id = wp_update_user( array(
-          'ID' => $user->data->ID,
-          'user_email' => $userinfo->email,
-          'description' => $description,
-        ) );
-      }
-
-      $this->users_repo->update_auth0_object( $user->data->ID, $userinfo );
-
-      $user = apply_filters( 'auth0_get_wp_user' , $user, $userinfo );
-
-      $this->do_login( $user, $userinfo, false, $id_token, $access_token );
-
-      return true;
-
-    } else {
-      try {
-
-        $creator = new WP_Auth0_UsersRepo( $this->a0_options );
-        $user_id = $creator->create( $userinfo, $id_token, $access_token, $this->default_role, $this->ignore_unverified_email );
-
-        $user = get_user_by( 'id', $user_id );
-
-        $this->do_login( $user, $userinfo, true, $id_token, $access_token );
-      }
-      catch ( WP_Auth0_CouldNotCreateUserException $e ) {
-        throw new WP_Auth0_LoginFlowValidationException( $e->getMessage() );
-      } catch ( WP_Auth0_RegistrationNotEnabledException $e ) {
-        $msg = __( 'Could not create user. The registration process is not available. Please contact your site’s administrator.', 'wp-auth0' );
-
-        throw new WP_Auth0_LoginFlowValidationException( $msg );
-      } catch ( WP_Auth0_EmailNotVerifiedException $e ) {
-        $this->dieWithVerifyEmail( $e->userinfo, $e->id_token );
-      }
-      // catch ( Exception $e ) {
-      //  echo $e;exit;
-      // }
-
-      return true;
-    }
-  }
-
-  private function dieWithVerifyEmail( $userinfo, $id_token ) {
-
-    $html = apply_filters( 'auth0_verify_email_page' , '', $userinfo, $id_token );
-    wp_die( $html );
-  }
-
-  public function login_with_credentials( $username, $password, $connection="Username-Password-Authentication" ) {
-
-    $domain = $this->a0_options->get( 'domain' );
-    $client_id = $this->a0_options->get( 'client_id' );
-
-    $response = WP_Auth0_Api_Client::ro( $domain, $client_id, $username, $password, $connection, 'openid name email nickname email_verified identities' );
-
-    $secret = $this->a0_options->get_client_secret_as_key();
-
-    try {
-      // Decode the user
-      $decodedToken = JWT::decode( $response->id_token, $secret, array(  $this->a0_options->get_client_signing_algorithm() ) );
-
-      // validate that this JWT was made for us
-      if ( $this->a0_options->get( 'client_id' ) !== $decodedToken->aud ) {
-        throw new Exception( 'This token is not intended for us.' );
-      }
-
-      $decodedToken->user_id = $decodedToken->sub;
-
-      if ( $this->login_user( $decodedToken, $response->id_token, $response->access_token ) ) {
-        return false;
-      }
-
-    } catch( UnexpectedValueException $e ) {
-
-      WP_Auth0_ErrorManager::insert_auth0_error( 'login_with_credentials', $e );
-
-      error_log( $e->getMessage() );
-    }
-    return false;
-
-  }
-
-  protected function query_vars( $key ) {
-    global $wp_query;
-    if ( isset( $wp_query->query_vars[$key] ) ) return $wp_query->query_vars[$key];
-    if ( isset( $_REQUEST[$key] ) ) return $_REQUEST[$key];
-    return null;
-  }
-
+	/**
+	 * Instance of WP_Auth0_Options.
+	 *
+	 * @var null|WP_Auth0_Options
+	 */
+	protected $a0_options;
+
+	/**
+	 * User strategy to use.
+	 *
+	 * @var WP_Auth0_UsersRepo
+	 */
+	protected $users_repo;
+
+	/**
+	 * WP_Auth0_LoginManager constructor.
+	 *
+	 * @param WP_Auth0_UsersRepo $users_repo - see member variable doc comment.
+	 * @param WP_Auth0_Options   $a0_options - see member variable doc comment.
+	 */
+	public function __construct( WP_Auth0_UsersRepo $users_repo, WP_Auth0_Options $a0_options ) {
+		$this->users_repo = $users_repo;
+		$this->a0_options = $a0_options;
+	}
+
+	/**
+	 * Redirect logged-in users from wp-login.php.
+	 * Redirect to Universal Login Page under certain conditions and if the option is turned on.
+	 *
+	 * @return bool
+	 */
+	public function login_auto() {
+		// Not processing form data, just using a redirect parameter if present.
+		// phpcs:disable WordPress.Security.NonceVerification.NoNonceVerification
+
+		// Do not redirect anywhere if this is a logout action.
+		if ( wp_auth0_is_current_login_action( [ 'logout' ] ) ) {
+			return false;
+		}
+
+		// Do not redirect login page override.
+		if ( wp_auth0_can_show_wp_login_form() ) {
+			return false;
+		}
+
+		// If the user has a WP session, determine where they should end up and redirect.
+		if ( is_user_logged_in() ) {
+			$login_redirect = empty( $_REQUEST['redirect_to'] ) ?
+				$this->a0_options->get( 'default_login_redirection' ) :
+				filter_var( wp_unslash( $_REQUEST['redirect_to'] ), FILTER_SANITIZE_URL );
+
+			// Add a cache buster to avoid an infinite redirect loop on pages that check for auth.
+			$login_redirect = add_query_arg( time(), '', $login_redirect );
+			wp_safe_redirect( $login_redirect );
+			exit;
+		}
+
+		// Do not use the ULP if the setting is off or if the plugin is not configured.
+		if ( ! $this->a0_options->get( 'auto_login', false ) ) {
+			return false;
+		}
+
+		$connection  = apply_filters( 'auth0_get_auto_login_connection', $this->a0_options->get( 'auto_login_method' ) );
+		$auth_params = self::get_authorize_params( $connection );
+
+		WP_Auth0_State_Handler::get_instance()->set_cookie( $auth_params['state'] );
+		WP_Auth0_Nonce_Handler::get_instance()->set_cookie( $auth_params['nonce'] );
+
+		$auth_url = self::build_authorize_url( $auth_params );
+
+		wp_safe_redirect( $auth_url );
+		exit;
+
+		// phpcs:enable WordPress.Security.NonceVerification.NoNonceVerification
+	}
+
+	/**
+	 * Process an incoming successful login from Auth0, aka login callback.
+	 * Auth0 must be configured and 'auth0' URL parameter not empty.
+	 * Handles errors and state validation
+	 */
+	public function init_auth0() {
+		// WP nonce is not needed here, nonce and state parameters provide replay and CSRF protection.
+		// phpcs:disable WordPress.Security.NonceVerification.NoNonceVerification
+
+		set_query_var( 'auth0_login_successful', false );
+
+		$invitation   = $this->query_vars( 'invitation' );
+		$organization = $this->query_vars( 'organization' );
+
+		if ( $invitation && $organization ) {
+			$connection  = apply_filters( 'auth0_get_auto_login_connection', $this->a0_options->get( 'auto_login_method' ) );
+			$auth_params = self::get_authorize_params( $connection );
+
+			WP_Auth0_State_Handler::get_instance()->set_cookie( $auth_params['state'] );
+			WP_Auth0_Nonce_Handler::get_instance()->set_cookie( $auth_params['nonce'] );
+
+			$auth_params['invitation'] = $invitation;
+
+			$auth_url = self::build_authorize_url( $auth_params );
+
+			wp_safe_redirect( $auth_url );
+			exit;
+		}
+
+		$cb_type = $this->query_vars( 'auth0' );
+
+		// Not an Auth0 login process or settings are not configured to allow logins.
+		if ( ! $cb_type || ! wp_auth0_is_ready() ) {
+			return false;
+		}
+
+		// Catch any incoming errors and stop the login process.
+		// See https://auth0.com/docs/libraries/error-messages for more info.
+		if ( ! empty( $_REQUEST['error'] ) || ! empty( $_REQUEST['error_description'] ) ) {
+			// Input variable is sanitized.
+			// phpcs:disable WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+			$error_msg  = sanitize_text_field( rawurldecode( wp_unslash( $_REQUEST['error_description'] ) ) );
+			$error_code = sanitize_text_field( rawurldecode( wp_unslash( $_REQUEST['error'] ) ) );
+			// phpcs:enable WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+			$this->die_on_login( $error_msg, $error_code );
+		}
+
+		// No need to process a login if the user is already logged in and there is no error.
+		if ( is_user_logged_in() ) {
+			wp_safe_redirect( $this->a0_options->get( 'default_login_redirection' ) );
+			exit;
+		}
+
+		// Check for valid state value returned from Auth0.
+		// Null coalescing validates; value is checked in validate, not stored or output.
+		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput
+		$state = wp_unslash( $_GET['state'] ?? '' );
+		if ( ! $state ) {
+			$this->die_on_login( __( 'Missing state', 'wp-auth0' ) );
+		}
+
+		if ( ! WP_Auth0_State_Handler::get_instance()->validate( $state ) ) {
+			$this->die_on_login( __( 'Invalid state', 'wp-auth0' ) );
+		}
+
+		try {
+			$this->redirect_login();
+		} catch ( WP_Auth0_LoginFlowValidationException $e ) {
+
+			// Errors encountered during the OAuth login flow.
+			$this->die_on_login( $e->getMessage(), $e->getCode() );
+		} catch ( WP_Auth0_BeforeLoginException $e ) {
+
+			// Errors encountered during the WordPress login flow.
+			$this->die_on_login( $e->getMessage(), $e->getCode() );
+		} catch ( WP_Auth0_InvalidIdTokenException $e ) {
+			$code            = 'invalid_id_token';
+			$display_message = __( 'Invalid ID token', 'wp-auth0' );
+			WP_Auth0_ErrorLog::insert_error(
+				__METHOD__ . ' L:' . __LINE__,
+				new WP_Error( $code, $display_message . ': ' . $e->getMessage() )
+			);
+			$this->die_on_login( $display_message, $code );
+		}
+
+		// phpcs:enable WordPress.Security.NonceVerification.NoNonceVerification
+	}
+
+	/**
+	 * Main login flow using the Authorization Code Grant.
+	 *
+	 * @throws WP_Auth0_LoginFlowValidationException - OAuth login flow errors.
+	 * @throws WP_Auth0_BeforeLoginException - Errors encountered during the auth0_before_login action.
+	 * @throws WP_Auth0_InvalidIdTokenException If the ID token does not validate.
+	 *
+	 * @link https://auth0.com/docs/api-auth/tutorials/authorization-code-grant
+	 */
+	public function redirect_login() {
+
+		// Exchange authorization code for tokens.
+		$exchange_api       = new WP_Auth0_Api_Exchange_Code( $this->a0_options, $this->a0_options->get_auth_domain() );
+		$exchange_resp_body = $exchange_api->call( $this->query_vars( 'code' ) );
+
+		if ( ! $exchange_resp_body ) {
+			throw new WP_Auth0_LoginFlowValidationException( __( 'Error exchanging code', 'wp-auth0' ) );
+		}
+
+		$data = json_decode( $exchange_resp_body );
+
+		$access_token  = isset( $data->access_token ) ? $data->access_token : null;
+		$id_token      = $data->id_token;
+		$refresh_token = isset( $data->refresh_token ) ? $data->refresh_token : null;
+
+		// Decode the incoming ID token for the Auth0 user.
+		$decoded_token = $this->decode_id_token( $id_token );
+
+		// Attempt to authenticate with the Management API, if allowed.
+		$userinfo = null;
+		if ( apply_filters( 'auth0_use_management_api_for_userinfo', true ) ) {
+			$cc_api        = new WP_Auth0_Api_Client_Credentials( $this->a0_options );
+			$get_user_api  = new WP_Auth0_Api_Get_User( $this->a0_options, $cc_api );
+			$get_user_resp = $get_user_api->call( $decoded_token->sub );
+			$userinfo      = ! empty( $get_user_resp ) ? json_decode( $get_user_resp ) : null;
+		}
+
+		// Management API call failed, fallback to ID token.
+		if ( ! $userinfo ) {
+			$userinfo = $this->clean_id_token( $decoded_token );
+		}
+
+		// Populate sub property, if not provided.
+		if ( ! isset( $userinfo->sub ) ) {
+			$userinfo->sub = $userinfo->user_id;
+		}
+
+		if ( $this->login_user( $userinfo, $id_token, $access_token, $refresh_token ) ) {
+			$state_decoded = $this->get_state();
+			if ( ! empty( $state_decoded->interim ) ) {
+				include WPA0_PLUGIN_DIR . 'templates/login-interim.php';
+			} else {
+				if ( ! empty( $state_decoded->redirect_to ) && wp_login_url() !== $state_decoded->redirect_to ) {
+					$redirect_url = $state_decoded->redirect_to;
+				} else {
+					$redirect_url = $this->a0_options->get( 'default_login_redirection' );
+				}
+				wp_safe_redirect( $redirect_url );
+			}
+			exit();
+		}
+	}
+
+	/**
+	 * Attempts to log the user in and create a new user, if possible/needed.
+	 *
+	 * @param object      $userinfo - Auth0 profile of the user.
+	 * @param null|string $id_token - user's ID token if returned from Auth0.
+	 * @param null|string $access_token - user's access token if returned from Auth0.
+	 * @param null|string $refresh_token - user's refresh token if returned from Auth0.
+	 *
+	 * @return bool
+	 *
+	 * @throws WP_Auth0_LoginFlowValidationException - OAuth login flow errors.
+	 * @throws WP_Auth0_BeforeLoginException - Errors encountered during the auth0_before_login action.
+	 */
+	public function login_user( $userinfo, $id_token = null, $access_token = null, $refresh_token = null ) {
+		$auth0_sub        = $userinfo->sub;
+		list( $strategy ) = explode( '|', $auth0_sub );
+		$user             = null;
+
+		// Check that the user has a verified email, if required.
+		if (
+			// Admin settings enforce verified email.
+			$this->a0_options->get( 'requires_verified_email' ) &&
+			// Strategy for the user is not skipped.
+			! $this->a0_options->strategy_skips_verified_email( $strategy )
+		) {
+
+			// Email address is empty so cannot proceed.
+			if ( empty( $userinfo->email ) ) {
+				throw new WP_Auth0_LoginFlowValidationException(
+					__( 'This account does not have an email associated, as required by your site administrator.', 'wp-auth0' )
+				);
+			}
+
+			// Die with an action to re-send email verification.
+			if ( empty( $userinfo->email_verified ) ) {
+				WP_Auth0_Email_Verification::render_die( $userinfo );
+			}
+		}
+
+		// See if there is a user linked to the same Auth0 user_id.
+		if ( isset( $userinfo->identities ) ) {
+			foreach ( $userinfo->identities as $identity ) {
+				$user = $this->users_repo->find_auth0_user( "{$identity->provider}|{$identity->user_id}" );
+				if ( $user ) {
+					break;
+				}
+			}
+		} else {
+			$user = $this->users_repo->find_auth0_user( $auth0_sub );
+		}
+
+		$user = apply_filters( 'auth0_get_wp_user', $user, $userinfo );
+
+		if ( ! is_null( $user ) ) {
+			// User exists so log them in.
+			if ( isset( $userinfo->email ) && $user->data->user_email !== $userinfo->email ) {
+				$description = $user->data->description;
+				if ( empty( $description ) ) {
+					if ( isset( $userinfo->headline ) ) {
+						$description = $userinfo->headline;
+					}
+					if ( isset( $userinfo->description ) ) {
+						$description = $userinfo->description;
+					}
+					if ( isset( $userinfo->bio ) ) {
+						$description = $userinfo->bio;
+					}
+					if ( isset( $userinfo->about ) ) {
+						$description = $userinfo->about;
+					}
+				}
+
+				// Temporarily disable the email sync, since the changes are coming from Auth0, no need to update them there.
+				remove_action( 'profile_update', 'wp_auth0_profile_change_email', 100 );
+
+				wp_update_user(
+					(object) [
+						'ID'          => $user->data->ID,
+						'user_email'  => $userinfo->email,
+						'description' => $description,
+					]
+				);
+
+				// Turn the email sync back on
+				add_action( 'profile_update', 'wp_auth0_profile_change_email', 100, 2 );
+			}
+
+			$this->users_repo->update_auth0_object( $user->data->ID, $userinfo );
+			$user = apply_filters( 'auth0_get_wp_user', $user, $userinfo );
+			$this->do_login( $user, $userinfo, false, $id_token, $access_token, $refresh_token );
+			return true;
+		} else {
+
+			try {
+
+				$creator = new WP_Auth0_UsersRepo( $this->a0_options );
+				$user_id = $creator->create( $userinfo, $id_token );
+				$user    = get_user_by( 'id', $user_id );
+				$this->do_login( $user, $userinfo, true, $id_token, $access_token, $refresh_token );
+			} catch ( WP_Auth0_CouldNotCreateUserException $e ) {
+
+				throw new WP_Auth0_LoginFlowValidationException( $e->getMessage() );
+			} catch ( WP_Auth0_RegistrationNotEnabledException $e ) {
+
+				$msg = __(
+					'Could not create user. The registration process is not available. Please contact your site’s administrator.',
+					'wp-auth0'
+				);
+				throw new WP_Auth0_LoginFlowValidationException( $msg );
+			} catch ( WP_Auth0_EmailNotVerifiedException $e ) {
+
+				WP_Auth0_Email_Verification::render_die( $e->userinfo );
+			}
+			return true;
+		}
+	}
+
+	/**
+	 * Does all actions required to log the user in to WordPress, invoking hooks as necessary
+	 *
+	 * @param object      $user - the WP user object, such as returned by get_user_by().
+	 * @param object      $userinfo - the Auth0 profile of the user.
+	 * @param bool        $is_new - `true` if the user was created in the WordPress database, `false` if not.
+	 * @param null|string $id_token - user's ID token if returned from Auth0, otherwise null.
+	 * @param null|string $access_token - user's access token if returned from Auth0, otherwise null.
+	 * @param null|string $refresh_token - user's refresh token if returned from Auth0, otherwise null.
+	 *
+	 * @throws WP_Auth0_BeforeLoginException - Errors encountered during the auth0_before_login action.
+	 */
+	private function do_login( $user, $userinfo, $is_new, $id_token, $access_token, $refresh_token ) {
+		$remember_users_session = $this->a0_options->get( 'remember_users_session' );
+
+		try {
+			do_action( 'auth0_before_login', $user, $userinfo );
+		} catch ( Exception $e ) {
+			throw new WP_Auth0_BeforeLoginException( $e->getMessage() );
+		}
+
+		set_query_var( 'auth0_login_successful', true );
+
+		$secure_cookie = is_ssl();
+
+		// See wp_signon() for documentation on this filter.
+		$secure_cookie = apply_filters(
+			'secure_signon_cookie',
+			$secure_cookie,
+			[
+				'user_login'    => $user->user_login,
+				'user_password' => null,
+				'remember'      => $remember_users_session,
+			]
+		);
+
+		wp_set_auth_cookie( $user->ID, $remember_users_session, $secure_cookie );
+		do_action( 'wp_login', $user->user_login, $user );
+		do_action( 'auth0_user_login', $user->ID, $userinfo, $is_new, $id_token, $access_token, $refresh_token );
+	}
+
+	/**
+	 * Complete the logout process based on settings.
+	 * Hooked to `wp_logout` action.
+	 * IMPORTANT: Internal callback use only, do not call this function directly!
+	 *
+	 * @see WP_Auth0_LoginManager::init()
+	 *
+	 * @link https://codex.wordpress.org/Plugin_API/Action_Reference/wp_logout
+	 */
+	public function logout() {
+		if ( ! wp_auth0_is_ready() ) {
+			return;
+		}
+
+		// If SLO is in use, redirect to Auth0 to logout there as well.
+		if ( $this->a0_options->get( 'singlelogout' ) ) {
+			$return_to    = apply_filters( 'auth0_slo_return_to', home_url() );
+			$redirect_url = $this->auth0_logout_url( $return_to );
+			$redirect_url = apply_filters( 'auth0_logout_url', $redirect_url );
+			wp_safe_redirect( $redirect_url );
+			exit;
+		}
+
+		// If auto-login is in use, cannot redirect back to login page.
+		if ( $this->a0_options->get( 'auto_login' ) ) {
+			wp_safe_redirect( home_url() );
+			exit;
+		}
+	}
+
+	/**
+	 * Get and filter the scope used for access and ID tokens.
+	 *
+	 * @param string $context - how the scopes are being used.
+	 *
+	 * @return string
+	 */
+	public static function get_userinfo_scope( $context = '' ) {
+		$default_scope  = [ 'openid', 'email', 'profile' ];
+		$filtered_scope = apply_filters( 'auth0_auth_scope', $default_scope, $context );
+		return implode( ' ', $filtered_scope );
+	}
+
+	/**
+	 * Get authorize URL parameters for handling Universal Login Page redirects.
+	 *
+	 * @param null|string $connection - a specific connection to use; pass null to use all enabled connections.
+	 * @param null|string $redirect_to - URL to redirect upon successful authentication.
+	 *
+	 * @return array
+	 */
+	public static function get_authorize_params( $connection = null, $redirect_to = null ) {
+		// Nonce is not needed here as this is not processing form data.
+		// phpcs:disable WordPress.Security.NonceVerification.NoNonceVerification
+
+		$opts         = WP_Auth0_Options::Instance();
+		$customParams = trim( $opts->get( 'auto_login_params' ) ?? '' );
+		$params       = [];
+
+		if ( $customParams ) {
+			parse_str( $customParams, $params );
+		}
+
+		$params = array_merge(
+			$params,
+			[
+				'connection'    => $connection,
+				'client_id'     => $opts->get( 'client_id' ),
+				'organization'  => $opts->get( 'organization' ),
+				'scope'         => self::get_userinfo_scope( 'authorize_url' ),
+				'nonce'         => WP_Auth0_Nonce_Handler::get_instance()->get_unique(),
+				'max_age'       => absint( apply_filters( 'auth0_jwt_max_age', null ) ),
+				'response_type' => 'code',
+				'response_mode' => 'query',
+				'redirect_uri'  => $opts->get_wp_auth0_url(),
+			]
+		);
+
+		// Where should the user be redirected after logging in?
+		if ( empty( $redirect_to ) ) {
+			$redirect_to = empty( $_GET['redirect_to'] )
+				? $opts->get( 'default_login_redirection' )
+				: filter_var( wp_unslash( $_GET['redirect_to'] ), FILTER_SANITIZE_URL );
+		}
+
+		$filtered_params = apply_filters( 'auth0_authorize_url_params', $params, $connection, $redirect_to );
+
+		// State parameter, checked during login callback.
+		if ( empty( $filtered_params['state'] ) ) {
+			$state                    = [
+				'interim'     => false,
+				'nonce'       => WP_Auth0_State_Handler::get_instance()->get_unique(),
+				'redirect_to' => $redirect_to,
+			];
+			$filtered_state           = apply_filters( 'auth0_authorize_state', $state, $filtered_params );
+			$filtered_params['state'] = base64_encode( json_encode( $filtered_state ) );
+		}
+
+		return array_filter( $filtered_params );
+
+		// phpcs:enable WordPress.Security.NonceVerification.NoNonceVerification
+	}
+
+	/**
+	 * Build a link to the tenant's authorize page.
+	 *
+	 * @param array $params - URL parameters to append.
+	 *
+	 * @return string
+	 */
+	public static function build_authorize_url( array $params = [] ) {
+		$auth_url = 'https://' . WP_Auth0_Options::Instance()->get_auth_domain() . '/authorize';
+		$auth_url = add_query_arg( array_map( 'rawurlencode', $params ), $auth_url );
+		return apply_filters( 'auth0_authorize_url', $auth_url, $params );
+	}
+
+	/**
+	 * Get a value from query_vars or request global.
+	 *
+	 * TODO: This is checking a registered, global query variable and falling back to the PHP global.
+	 * TODO: We should be using one or the other, not both.
+	 * TODO: Need to determine the safest route for all WP instances.
+	 * TODO: Include get_state() in the analysis.
+	 *
+	 * @see https://developer.wordpress.org/reference/hooks/query_vars/
+	 *
+	 * @param string $key - query var key to return.
+	 *
+	 * @return string|null
+	 */
+	protected function query_vars( $key ) {
+		// Neither nonce nor sanitization is needed here as this is not processing form data, just returning it.
+		// phpcs:disable WordPress.Security.NonceVerification.NoNonceVerification
+		// phpcs:disable WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+
+		global $wp_query;
+
+		if ( isset( $wp_query->query_vars[ $key ] ) ) {
+			return $wp_query->query_vars[ $key ];
+		}
+
+		if ( isset( $_REQUEST[ $key ] ) ) {
+			return wp_unslash( $_REQUEST[ $key ] );
+		}
+
+		return null;
+
+		// phpcs:enable WordPress.Security.NonceVerification.NoNonceVerification
+		// phpcs:enable WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+	}
+
+	/**
+	 * Get the state value returned from Auth0 during login processing.
+	 * This should be used _after_ state has been validated for the login session.
+	 *
+	 * @return string|object|null
+	 */
+	protected function get_state() {
+		// Neither nonce nor sanitization is needed here as this is not processing form data, just returning it.
+		// phpcs:disable WordPress.Security.NonceVerification.NoNonceVerification
+		// phpcs:disable WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+
+		if ( ! isset( $_REQUEST['state'] ) ) {
+			return null;
+		}
+
+		$state_val = wp_unslash( $_REQUEST['state'] );
+		$state_val = rawurldecode( $state_val );
+		$state_val = base64_decode( $state_val );
+		$state_val = json_decode( $state_val );
+
+		return $state_val;
+
+		// phpcs:enable WordPress.Security.NonceVerification.NoNonceVerification
+		// phpcs:enable WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+	}
+
+	/**
+	 * Die during login process with a message
+	 *
+	 * @param string     $msg - translated error message to display.
+	 * @param string|int $code - error code, if given.
+	 */
+	protected function die_on_login( $msg = '', $code = 0 ) {
+
+		// Log the user out completely.
+		wp_destroy_current_session();
+		wp_clear_auth_cookie();
+		wp_set_current_user( 0 );
+
+		$html = sprintf(
+			'%s: %s [%s: %s]<br><br><a href="%s">%s</a>',
+			__( 'There was a problem with your log in', 'wp-auth0' ),
+			! empty( $msg )
+				? sanitize_text_field( $msg )
+				: __( 'Please see the site administrator', 'wp-auth0' ),
+			__( 'error code', 'wp-auth0' ),
+			$code ? sanitize_text_field( $code ) : __( 'unknown', 'wp-auth0' ),
+			$this->auth0_logout_url( wp_login_url() ),
+			__( '← Login', 'wp-auth0' )
+		);
+
+		$html = apply_filters( 'auth0_die_on_login_output', $html, $msg, $code, false );
+		wp_die( $html );
+	}
+
+	/**
+	 * @param string $id_token
+	 * @return object
+	 * @throws WP_Auth0_InvalidIdTokenException
+	 */
+	private function decode_id_token( $id_token ) {
+		$expectedIss = apply_filters( 'auth0_id_token_issuer', 'https://' . $this->a0_options->get_auth_domain() . '/' );
+		$expectedAlg = $this->a0_options->get( 'client_signing_algorithm' );
+		if ( 'RS256' === $expectedAlg ) {
+			$sigVerifier = new WP_Auth0_AsymmetricVerifier( new WP_Auth0_JwksFetcher() );
+		} elseif ( 'HS256' === $expectedAlg ) {
+			$sigVerifier = new WP_Auth0_SymmetricVerifier( $this->a0_options->get( 'client_secret' ) );
+		} else {
+			throw new WP_Auth0_InvalidIdTokenException( 'Signing algorithm of "' . $expectedAlg . '" is not supported.' );
+		}
+
+		$verifierOptions = [
+			'nonce'   => WP_Auth0_Nonce_Handler::get_instance()->get_once(),
+			'leeway'  => absint( apply_filters( 'auth0_jwt_leeway', null ) ),
+			'max_age' => absint( apply_filters( 'auth0_jwt_max_age', null ) ),
+			'org_id'  => apply_filters( 'auth0_jwt_org_id', $this->a0_options->get_auth_organization() ),
+		];
+
+		$idTokenVerifier = new WP_Auth0_IdTokenVerifier( $expectedIss, $this->a0_options->get( 'client_id' ), $sigVerifier );
+		return (object) $idTokenVerifier->verify( $id_token, $verifierOptions );
+	}
+
+	/**
+	 * Remove unnecessary ID token properties.
+	 *
+	 * @param stdClass $id_token_obj - ID token object to clean.
+	 *
+	 * @return stdClass
+	 *
+	 * @codeCoverageIgnore - Private method
+	 */
+	private function clean_id_token( $id_token_obj ) {
+		foreach ( [ 'iss', 'aud', 'iat', 'exp', 'nonce' ] as $attr ) {
+			unset( $id_token_obj->$attr );
+		}
+		if ( ! isset( $id_token_obj->user_id ) && isset( $id_token_obj->sub ) ) {
+			$id_token_obj->user_id = $id_token_obj->sub;
+		} elseif ( ! isset( $id_token_obj->sub ) && isset( $id_token_obj->user_id ) ) {
+			$id_token_obj->sub = $id_token_obj->user_id;
+		}
+		return $id_token_obj;
+	}
+
+	/**
+	 * Generate the Auth0 logout URL.
+	 *
+	 * @param string|null $return_to - Site URL to return to after logging out.
+	 *
+	 * @return string
+	 *
+	 * @codeCoverageIgnore - Private method
+	 */
+	private function auth0_logout_url( $return_to = null ) {
+		return sprintf(
+			'https://%s/v2/logout?client_id=%s&returnTo=%s',
+			$this->a0_options->get_auth_domain(),
+			$this->a0_options->get( 'client_id' ),
+			rawurlencode( $return_to ?: home_url() )
+		);
+	}
 }

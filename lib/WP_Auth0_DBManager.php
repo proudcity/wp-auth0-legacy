@@ -5,196 +5,181 @@ class WP_Auth0_DBManager {
 	protected $current_db_version = null;
 	protected $a0_options;
 
-	public function __construct($a0_options) {
+	public function __construct( WP_Auth0_Options $a0_options ) {
 		$this->a0_options = $a0_options;
 	}
 
-	public function init() {
-		$this->current_db_version = (int)get_option( 'auth0_db_version', 0 );
-		if ($this->current_db_version === 0) {
-			$this->current_db_version = (int)get_site_option( 'auth0_db_version', 0 );
-		}
-		add_action( 'plugins_loaded', array( $this, 'check_update' ) );
-	}
+	public function install_db( $version_to_install = null ) {
 
-	public function check_update() {
-		if ( $this->current_db_version !== AUTH0_DB_VERSION ) {
-			$this->install_db();
-		}
-	}
-
-	public function install_db() {
-
-		$options = WP_Auth0_Options::Instance();
-
-		if ($this->current_db_version === 0) {
-			$options->set('auth0_table', false);
-		} elseif($options->get('auth0_table') === null) {
-			$options->set('auth0_table', true);
+		$current_ver = (int) get_option( 'auth0_db_version', 0 );
+		if ( $current_ver === 0 ) {
+			$current_ver = (int) get_site_option( 'auth0_db_version', 0 );
 		}
 
-		$cdn_url = $options->get( 'cdn_url' );
+		if ( empty( $current_ver ) || $current_ver === AUTH0_DB_VERSION ) {
+			update_option( 'auth0_db_version', AUTH0_DB_VERSION );
+			return;
+		}
 
-		if ( $this->current_db_version <= 7 ) {
-			if ( $options->get( 'db_connection_enabled' ) ) {
+		wp_cache_set( 'doing_db_update', true, WPA0_CACHE_GROUP );
 
-				$app_token = $options->get( 'auth0_app_token' );
-				$connection_id = $options->get( 'db_connection_id' );
-				$migration_token = $options->get( "migration_token" );
+		$options = $this->a0_options;
 
-				$operations = new WP_Auth0_Api_Operations( $options );
-				if ( !empty( $app_token ) &&
-					!empty( $connection_id ) &&
-					!empty( $migration_token ) ) {
+		// Plugin version < 3.4.0
+		if ( $current_ver < 15 || 15 === $version_to_install ) {
+			$options->set( 'cdn_url', WPA0_LOCK_CDN_URL, false );
+			$options->set( 'cache_expiration', 1440, false );
 
-					$response = $operations->update_wordpress_connection(
-						$app_token,
-						$connection_id,
-						$options->get( 'password_policy' ),
-						$migration_token );
-				}
+			// Update Client
+			if ( wp_auth0_is_ready() ) {
+				$options->set( 'client_signing_algorithm', 'HS256', false );
 			}
 		}
 
-		if ( $this->current_db_version < 9 ) {
-			$this->migrate_users_data();
+		// Plugin version < 3.5.0
+		if ( $current_ver < 16 || 16 === $version_to_install ) {
+
+			// Update Lock and Auth versions
+			if ( '//cdn.auth0.com/js/lock/11.0.0/lock.min.js' === $options->get( 'cdn_url' ) ) {
+				$options->set( 'cdn_url', WPA0_LOCK_CDN_URL, false );
+			}
 		}
 
-		if ( $this->current_db_version < 10 ) {
+		// Plugin version < 3.6.0
+		if ( $current_ver < 18 || 18 === $version_to_install ) {
 
-			if ($options->get('use_lock_10') === null) {
+			// Migrate passwordless_method
+			if ( $options->get( 'passwordless_enabled', false ) ) {
+				$pwl_method = $options->get( 'passwordless_method' );
+				switch ( $pwl_method ) {
 
-				if ( strpos( $cdn_url, '10.' ) === false ) {
-					$options->set('use_lock_10', false);
-				} else {
-					$options->set('use_lock_10', true);
+					// SMS passwordless just needs 'sms' as a connection
+					case 'sms':
+						$options->set( 'lock_connections', 'sms', false );
+						break;
+
+					// Social + SMS means there are existing social connections we want to keep
+					case 'socialOrSms':
+						$options->add_lock_connection( 'sms' );
+						break;
+
+					// Email link passwordless just needs 'email' as a connection
+					case 'emailcode':
+					case 'magiclink':
+						$options->set( 'lock_connections', 'email', false );
+						break;
+
+					// Social + Email means there are social connections be want to keep
+					case 'socialOrMagiclink':
+					case 'socialOrEmailcode':
+						$options->add_lock_connection( 'email' );
+						break;
 				}
 
+				// Need to set a special passwordlessMethod flag if using email code
+				$lock_json                               = trim( $options->get( 'extra_conf' ) );
+				$lock_json_decoded                       = ! empty( $lock_json ) ? json_decode( $lock_json, true ) : [];
+				$lock_json_decoded['passwordlessMethod'] = strpos( $pwl_method, 'code' ) ? 'code' : 'link';
+				$options->set( 'extra_conf', json_encode( $lock_json_decoded ), false );
 			}
 
-			$dict = $options->get('dict');
+			$options->remove( 'passwordless_method' );
+		}
 
-			if (!empty($dict))
-			{
+		// 3.9.0
+		if ( $current_ver < 20 || 20 === $version_to_install ) {
 
-				if (json_decode($dict) === null)
-				{
-					$options->set('language', $dict);
-				}
-				else
-				{
-					$options->set('language_dictionary', $dict);
-				}
+			// Remove default IP addresses from saved field.
+			$migration_ips = trim( $options->get( 'migration_ips' ) );
+			if ( $migration_ips ) {
+				$migration_ips = array_map( 'trim', explode( ',', $migration_ips ) );
+				$ip_check      = new WP_Auth0_Ip_Check( $options );
+				$default_ips   = explode( ',', $ip_check->get_ips_by_domain() );
+				$custom_ips    = array_diff( $migration_ips, $default_ips );
+				$options->set( 'migration_ips', implode( ',', $custom_ips ), false );
+			}
+		}
 
+		// 3.10.0
+		if ( $current_ver < 21 || 21 === $version_to_install ) {
+
+			if ( 'https://cdn.auth0.com/js/lock/11.5/lock.min.js' === $options->get( 'cdn_url' ) ) {
+				$options->set( 'cdn_url', WPA0_LOCK_CDN_URL, false );
+				$options->set( 'custom_cdn_url', false, false );
+			} else {
+				$options->set( 'custom_cdn_url', true, false );
 			}
 
+			// Nullify and delete all removed options.
+			$options->remove( 'auth0js-cdn' );
+			$options->remove( 'passwordless_cdn_url' );
+			$options->remove( 'cdn_url_legacy' );
+
+			$options->remove( 'social_twitter_key' );
+			$options->remove( 'social_twitter_secret' );
+			$options->remove( 'social_facebook_key' );
+			$options->remove( 'social_facebook_secret' );
+			$options->remove( 'connections' );
+
+			$options->remove( 'chart_idp_type' );
+			$options->remove( 'chart_gender_type' );
+			$options->remove( 'chart_age_type' );
+			$options->remove( 'chart_age_from' );
+			$options->remove( 'chart_age_to' );
+			$options->remove( 'chart_age_step' );
+
+			// Migrate WLE setting
+			$new_wle_value = $options->get( 'wordpress_login_enabled' ) ? 'link' : 'isset';
+			$options->set( 'wordpress_login_enabled', $new_wle_value, false );
+			$options->set( 'wle_code', str_shuffle( uniqid() . uniqid() ), false );
+
+			// Remove Client Grant update notifications.
+			delete_option( 'wp_auth0_client_grant_failed' );
+			delete_option( 'wp_auth0_grant_types_failed' );
+			delete_option( 'wp_auth0_client_grant_success' );
+			delete_option( 'wp_auth0_grant_types_success' );
 		}
 
-		if ( $this->current_db_version < 12 ) {
-
-      if ( strpos( $cdn_url, '10.' ) === false ) {
-        $options->set('use_lock_10', false);
-      } else {
-        $options->set('use_lock_10', true);
-      }
-
-    }
-
-    if ( $this->current_db_version < 13 ) {
-      $ips = $options->get('migration_ips');
-      $oldips = '138.91.154.99,54.221.228.15,54.183.64.135,54.67.77.38,54.67.15.170,54.183.204.205,54.173.21.107,54.85.173.28';
-
-      $ipCheck = new WP_Auth0_Ip_Check($options);
-
-      if ( $ips === $oldips ) {
-        $options->set('migration_ips', $ipCheck->get_ip_by_region('us'));
-      }
-    }
-
-	if ( $this->current_db_version < 14 && is_null($options->get('client_secret_b64_encoded' ))) {
-		if ( $options->get('client_id' )) {
-			$options->set('client_secret_b64_encoded', true);
-		} else {
-			$options->set('client_secret_b64_encoded', false);
+		// 3.11.0
+		if ( $current_ver < 22 || 22 === $version_to_install ) {
+			$options->remove( 'social_big_buttons' );
 		}
-	}
 
-	if ( $this->current_db_version < 15 ) {
-		$options->set('use_lock_10', true);
-		$options->set('cdn_url', '//cdn.auth0.com/js/lock/11.0.0/lock.min.js');
-		$options->set('auth0js-cdn', '//cdn.auth0.com/js/auth0/9.0.0/auth0.min.js');
-		$options->set('cache_expiration', 1440);
+		// 4.0.0
+		if ( $current_ver < 23 || 23 === $version_to_install ) {
+			$extra_conf = json_decode( $options->get( 'extra_conf' ), true );
+			if ( empty( $extra_conf ) ) {
+				$extra_conf = [];
+			}
 
-		// Update Client
-		$client_id = $options->get( 'client_id' );
-		$domain = $options->get( 'domain' );
-		if (!empty($client_id) && !empty($domain)) {
-			$app_token = $options->get( 'auth0_app_token' );
-			$sso = $options->get( 'sso' );
-			$payload = array(
-				"cross_origin_auth" => true,
-				"cross_origin_loc" => home_url('/index.php?auth0fallback=1','https'),
-				"web_origins" => array(home_url())
-			);
-			$updateClient = WP_Auth0_Api_Client::update_client($domain, $app_token, $client_id, $sso, $payload);
-			$options->set('client_signing_algorithm', 'HS256');
+			$language = $options->get( 'language' );
+			if ( $language ) {
+				$extra_conf['language'] = $language;
+			}
+			$options->remove( 'language' );
+
+			$language_dict = json_decode( $options->get( 'language_dictionary' ), true );
+			if ( $language_dict ) {
+				$extra_conf['languageDictionary'] = $language_dict;
+			}
+			$options->remove( 'language_dictionary' );
+
+			if ( ! empty( $extra_conf ) ) {
+				$options->set( 'extra_conf', wp_json_encode( $extra_conf ) );
+			}
+
+			$options->remove( 'jwt_auth_integration' );
+			$options->remove( 'link_auth0_users' );
+			$options->remove( 'custom_css' );
+			$options->remove( 'custom_js' );
+			$options->remove( 'auth0_implicit_workflow' );
+			$options->remove( 'client_secret_b64_encoded' );
+			$options->remove( 'custom_signup_fields' );
+			$options->remove( 'migration_token_id' );
 		}
-	}
-		$this->current_db_version = AUTH0_DB_VERSION;
+
+		$options->update_all();
 		update_option( 'auth0_db_version', AUTH0_DB_VERSION );
-	}
-
-	protected function migrate_users_data() {
-		global $wpdb;
-
-		$wpdb->auth0_user = $wpdb->prefix.'auth0_user';
-
-		$sql = 'SELECT a.*
-				FROM ' . $wpdb->auth0_user .' a
-				JOIN ' . $wpdb->users . ' u ON a.wp_id = u.id;';
-
-		$userRows = $wpdb->get_results( $sql );
-
-		if ( is_null( $userRows ) ) {
-			return;
-		} elseif ( $userRows instanceof WP_Error ) {
-			WP_Auth0_ErrorManager::insert_auth0_error( 'migrate_users_data', $userRows );
-			return;
-		}
-
-		$repo = new WP_Auth0_UsersRepo( $this->a0_options );
-
-		foreach ($userRows as $row) {
-			$auth0_id = get_user_meta( $row->wp_id, $wpdb->prefix.'auth0_id', true);
-
-			if (!$auth0_id) {
-				$repo->update_auth0_object( $row->wp_id, WP_Auth0_Serializer::unserialize($row->auth0_obj) );
-			}
-		}
-	}
-
-	public function get_auth0_users( $user_ids = null ) {
-		global $wpdb;
-
-		if ($user_ids === null) {
-			$query = array( 'meta_key' => $wpdb->prefix.'auth0_id' );
-		}
-		else {
-			$query = array( 'meta_query' => array(
-        'key' => $wpdb->prefix.'auth0_id',
-        'value' => $user_ids,
-        'compare' => 'IN',
-			) );
-		}
-		$query['blog_id'] = 0;
-
-		$results = get_users( $query );
-
-		if ( $results instanceof WP_Error ) {
-			WP_Auth0_ErrorManager::insert_auth0_error( 'findAuth0User', $userRow );
-			return array();
-		}
-
-		return $results;
+		wp_cache_set( 'doing_db_update', false, WPA0_CACHE_GROUP );
 	}
 }

@@ -1,266 +1,365 @@
 <?php
+/**
+ * Contains WP_Auth0_Admin_Basic.
+ *
+ * @package WP-Auth0
+ *
+ * @since 2.0.0
+ */
 
+/**
+ * Class WP_Auth0_Admin_Basic.
+ * Fields and validations for the Basic settings tab.
+ */
 class WP_Auth0_Admin_Basic extends WP_Auth0_Admin_Generic {
 
-	const BASIC_DESCRIPTION = 'Basic settings related to Auth0 credentials and basic WordPress integration.';
+	const ALLOWED_ID_TOKEN_ALGS = [ 'HS256', 'RS256' ];
 
-	protected $actions_middlewares = array(
-		'basic_validation',
-	);
-
+	/**
+	 * All settings in the Basic tab
+	 *
+	 * @see \WP_Auth0_Admin::init_admin
+	 * @see \WP_Auth0_Admin_Generic::init_option_section
+	 */
 	public function init() {
 
-		/* ------------------------- BASIC ------------------------- */
-		add_action( 'wp_ajax_auth0_delete_cache_transient', array( $this, 'auth0_delete_cache_transient' ) );
-
-		$this->init_option_section( '', 'basic', array(
-
-				array( 'id' => 'wpa0_domain', 'name' => 'Domain', 'function' => 'render_domain' ),
-				array( 'id' => 'wpa0_client_id', 'name' => 'Client ID', 'function' => 'render_client_id' ),
-				array( 'id' => 'wpa0_client_secret', 'name' => 'Client Secret', 'function' => 'render_client_secret' ),
-				array( 'id' => 'wpa0_client_secret_b64_encoded', 'name' => 'Client Secret Base64 Encoded', 'function' => 'render_client_secret_b64_encoded' ),
-				array( 'id' => 'wpa0_client_signing_algorithm', 'name' => 'Client Signing Algorithm', 'function' => 'render_client_signing_algorithm' ),
-				array( 'id' => 'wpa0_cache_expiration', 'name' => 'Cache Time (minutes)', 'function' => 'render_cache_expiration' ),
-				array( 'id' => 'wpa0_auth0_app_token', 'name' => 'API token', 'function' => 'render_auth0_app_token' ), //we are not going to show the token
-				array( 'id' => 'wpa0_login_enabled', 'name' => 'WordPress login enabled', 'function' => 'render_allow_wordpress_login' ),
-				array( 'id' => 'wpa0_allow_signup', 'name' => 'Allow signup', 'function' => 'render_allow_signup' ),
-
-			) );
+		$options = [
+			[
+				'name'     => __( 'Domain', 'wp-auth0' ),
+				'opt'      => 'domain',
+				'id'       => 'wpa0_domain',
+				'function' => 'render_domain',
+			],
+			[
+				'name'     => __( 'Custom Domain', 'wp-auth0' ),
+				'opt'      => 'custom_domain',
+				'id'       => 'wpa0_custom_domain',
+				'function' => 'render_custom_domain',
+			],
+			[
+				'name'     => __( 'Client ID', 'wp-auth0' ),
+				'opt'      => 'client_id',
+				'id'       => 'wpa0_client_id',
+				'function' => 'render_client_id',
+			],
+			[
+				'name'     => __( 'Client Secret', 'wp-auth0' ),
+				'opt'      => 'client_secret',
+				'id'       => 'wpa0_client_secret',
+				'function' => 'render_client_secret',
+			],
+			[
+				'name'     => __( 'Organization', 'wp-auth0' ),
+				'opt'      => 'organization',
+				'id'       => 'wpa0_organization',
+				'function' => 'render_organization',
+			],
+			[
+				'name'     => __( 'JWT Signature Algorithm', 'wp-auth0' ),
+				'opt'      => 'client_signing_algorithm',
+				'id'       => 'wpa0_client_signing_algorithm',
+				'function' => 'render_client_signing_algorithm',
+			],
+			[
+				'name'     => __( 'JWKS Cache Time (in minutes)', 'wp-auth0' ),
+				'opt'      => 'cache_expiration',
+				'id'       => 'wpa0_cache_expiration',
+				'function' => 'render_cache_expiration',
+			],
+			[
+				'name'     => __( 'Original Login Form on wp-login.php', 'wp-auth0' ),
+				'opt'      => 'wordpress_login_enabled',
+				'id'       => 'wpa0_login_enabled',
+				'function' => 'render_allow_wordpress_login',
+			],
+			[
+				'name'     => __( 'Allow Signups', 'wp-auth0' ),
+				'id'       => 'wpa0_allow_signup',
+				'function' => 'render_allow_signup',
+			],
+		];
+		$this->init_option_section( '', 'basic', $options );
 	}
 
+	/**
+	 * Render form field and description for the `domain` option.
+	 * IMPORTANT: Internal callback use only, do not call this function directly!
+	 *
+	 * @param array $args - callback args passed in from add_settings_field().
+	 *
+	 * @see WP_Auth0_Admin_Generic::init_option_section()
+	 * @see add_settings_field()
+	 */
+	public function render_domain( $args = [] ) {
 
-	public function render_client_id() {
-		$v = $this->options->get( 'client_id' );
-?>
-      <input type="text" name="<?php echo $this->options->get_options_name(); ?>[client_id]" id="wpa0_client_id" value="<?php echo esc_attr( $v ); ?>"/>
-      <div class="subelement">
-        <span class="description"><?php echo __( 'Application ID, copy from your application\'s settings in the', 'wp-auth0' ); ?> <a href="https://manage.auth0.com/#/applications" target="_blank">Auth0 dashboard</a>.</span>
-      </div>
-    <?php
+		$style = $this->options->get( $args['opt_name'] ) ? '' : self::ERROR_FIELD_STYLE;
+		$this->render_text_field( $args['label_for'], $args['opt_name'], 'text', 'your-tenant.auth0.com', $style );
+		$this->render_field_description(
+			__( 'Auth0 Domain, found in your Application settings in the ', 'wp-auth0' ) .
+			$this->get_dashboard_link( 'applications' )
+		);
 	}
 
-	public function render_auth0_app_token() {
+	/**
+	 * Render form field and description for the `custom_domain` option.
+	 * IMPORTANT: Internal callback use only, do not call this function directly!
+	 *
+	 * @param array $args - callback args passed in from add_settings_field().
+	 *
+	 * @see WP_Auth0_Admin_Generic::init_option_section()
+	 * @see add_settings_field()
+	 *
+	 * @since 3.7.0
+	 */
+	public function render_custom_domain( $args = [] ) {
 
-		$scopes = WP_Auth0_Api_Client::GetConsentScopestoShow();
-		$v = $this->options->get( 'auth0_app_token' );
-
-?>
-      <input type="text" name="<?php echo $this->options->get_options_name(); ?>[auth0_app_token]" id="wpa0_auth0_app_token" autocomplete="off" <?php if ( !empty( $v ) ) {?>placeholder="Not visible"<?php } ?> />
-      <div class="subelement">
-        <span class="description">
-          <?php echo __( 'The token should be generated via the ', 'wp-auth0' ); ?>
-          <a href="https://auth0.com/docs/api/v2" target="_blank"><?php echo __( 'token generator', 'wp-auth0' ); ?></a>
-          <?php echo __( ' with the following scopes:', 'wp-auth0' ); ?>
-          <i>
-          <?php $a = 0; foreach ( $scopes as $resource => $actions ) { $a++;?>
-            <b><?php echo $resource ?></b> (<?php echo $actions ?>)<?php
-			if ( $a < count( $scopes ) - 1 ) {
-				echo ", ";
-			} else if ( $a === count( $scopes ) - 1 ) {
-					echo " and ";
-				}
-?>
-          <?php } ?>.
-          </i>
-        </span>
-      </div>
-    <?php
+		$this->render_text_field( $args['label_for'], $args['opt_name'], 'text', 'login.yourdomain.com' );
+		$this->render_field_description(
+			__( 'Custom login domain. ', 'wp-auth0' ) .
+			$this->get_docs_link( 'custom-domains', __( 'More information here', 'wp-auth0' ) )
+		);
 	}
 
-	public function render_client_secret() {
-		$v = $this->options->get( 'client_secret' );
-	?>
-      <input type="text" autocomplete="off" name="<?php echo $this->options->get_options_name(); ?>[client_secret]" id="wpa0_client_secret"  <?php if ( !empty( $v ) ) {?>placeholder="Not visible"<?php } ?> />
-      <div class="subelement">
-        <span class="description"><?php echo __( 'Application secret, copy from your application\'s settings in the', 'wp-auth0' ); ?> <a href="https://manage.auth0.com/#/applications" target="_blank">Auth0 dashboard</a>.</span>
-      </div>
-  <?php
+	/**
+	 * Render form field and description for the `client_id` option.
+	 * IMPORTANT: Internal callback use only, do not call this function directly!
+	 *
+	 * @param array $args - callback args passed in from add_settings_field().
+	 *
+	 * @see WP_Auth0_Admin_Generic::init_option_section()
+	 * @see add_settings_field()
+	 */
+	public function render_client_id( $args = [] ) {
+
+		$style = $this->options->get( $args['opt_name'] ) ? '' : self::ERROR_FIELD_STYLE;
+		$this->render_text_field( $args['label_for'], $args['opt_name'], 'text', '', $style );
+		$this->render_field_description(
+			__( 'Client ID, found in your Application settings in the ', 'wp-auth0' ) .
+			$this->get_dashboard_link( 'applications' )
+		);
 	}
 
-	public function render_client_secret_b64_encoded() {
-		$v = absint( $this->options->get( 'client_secret_b64_encoded' ) );
+	/**
+	 * Render form field and description for the `client_secret` option.
+	 * IMPORTANT: Internal callback use only, do not call this function directly!
+	 *
+	 * @param array $args - callback args passed in from add_settings_field().
+	 *
+	 * @see WP_Auth0_Admin_Generic::init_option_section()
+	 * @see add_settings_field()
+	 */
+	public function render_client_secret( $args = [] ) {
 
-		echo $this->render_a0_switch( "wpa_client_secret_b64_encoded", "client_secret_b64_encoded", 1, 1 == $v );
-	?>
-				<div class="subelement">
-					<span class="description"><?php echo __( 'Enable if your client secret is base64 enabled.  If you are not sure, check your clients page in Auth0.  Displayed below the client secret on that page is the text "The Client Secret is not base64 encoded.
-	" when this is not encoded.', 'wp-auth0' ); ?></span>
-				</div>
-			<?php
+		$style = $this->options->get( $args['opt_name'] ) ? '' : self::ERROR_FIELD_STYLE;
+		$this->render_text_field( $args['label_for'], $args['opt_name'], 'password', '', $style );
+		$this->render_field_description(
+			__( 'Client Secret, found in your Application settings in the ', 'wp-auth0' ) .
+			$this->get_dashboard_link( 'applications' )
+		);
 	}
 
-  public function render_client_signing_algorithm(){
-		$v = $this->options->get( 'client_signing_algorithm' );
-	?>
+	/**
+	 * Render form field and description for the `organization` option.
+	 * IMPORTANT: Internal callback use only, do not call this function directly!
+	 *
+	 * @param array $args - callback args passed in from add_settings_field().
+	 *
+	 * @see WP_Auth0_Admin_Generic::init_option_section()
+	 * @see add_settings_field()
+	 */
+	public function render_organization( $args = [] ) {
 
-    <select id="wpa0_client_signing_algorithm" name="<?php echo $this->options->get_options_name() ?>[client_signing_algorithm]">
-    	<option value="HS256" <?php echo ($v == "HS256" ? 'selected' : '') ?>>HS256</option>
-    	<option value="RS256" <?php echo ($v == "RS256" ? 'selected' : '') ?>>RS256</option>
-    </select>
-    <div class="subelement">
-			<span class="description"><?php echo __( 'If you use the default client secret to sign tokens, select HS256. See your clients page in Auth0. Advanced > OAuth > JsonWebToken Signature Algorithm', WPA0_LANG ); ?></span>
-		</div>
-  <?php  
- 	}
-
- public function render_cache_expiration() {
- 		$v = $this->options->get( 'cache_expiration' );
- 	?>
- 	   <script>
-	    function DeleteCacheTransient(event) {
-	      event.preventDefault();
-
-	      var data = {
-	        'action': 'auth0_delete_cache_transient',
-	      };
-
-	      jQuery('#auth0_delete_cache_transient').attr('disabled', 'true');
-
-	      jQuery.post('<?php echo admin_url( 'admin-ajax.php' ); ?>', data, function(response) {
-
-	        jQuery('#auth0_delete_cache_transient').val('Done!').attr('disabled', 'true');
-
-	      }, 'json');
-
-	    }
-    </script>
-
-     <input type="number" name="<?php echo $this->options->get_options_name(); ?>[cache_expiration]" id="wpa0_cache_expiration" value="<?php echo esc_attr( $v ); ?>" />
-     
-     <input type="button" onclick="DeleteCacheTransient(event);" name="auth0_delete_cache_transient" id="auth0_delete_cache_transient" value="Delete Cache" class="button button-secondary" />
-
-  		<div class="subelement">
-				<span class="description"><?php echo __( 'JWKS cache expiration in minutes (0 = no caching)', WPA0_LANG ); ?></span>
-			</div>
-	<?php
- 	}
-
-	public function render_domain() {
-		$v = $this->options->get( 'domain' );
-	?>
-      <input type="text" name="<?php echo $this->options->get_options_name(); ?>[domain]" id="wpa0_domain" value="<?php echo esc_attr( $v ); ?>" />
-      <div class="subelement">
-        <span class="description"><?php echo __( 'Your Auth0 domain, you can see it in the', 'wp-auth0' ); ?> <a href="https://manage.auth0.com/#/applications" target="_blank">Auth0 dashboard</a><?php echo __( '. Example: foo.auth0.com', 'wp-auth0' ); ?></span>
-      </div>
-  <?php
+		$this->render_text_field( $args['label_for'], $args['opt_name'], 'text', '' );
+		$this->render_field_description(
+			__( 'Optional. Organization Id, found in your Organizations settings in the ', 'wp-auth0' ) .
+			$this->get_dashboard_link( 'applications' )
+		);
 	}
 
+	/**
+	 * Render form field and description for the `client_signing_algorithm` option.
+	 * IMPORTANT: Internal callback use only, do not call this function directly!
+	 *
+	 * @param array $args - callback args passed in from add_settings_field().
+	 *
+	 * @see WP_Auth0_Admin_Generic::init_option_section()
+	 * @see add_settings_field()
+	 */
+	public function render_client_signing_algorithm( $args = [] ) {
 
+		$curr_value = $this->options->get( $args['opt_name'] ) ?: WP_Auth0_Api_Client::DEFAULT_CLIENT_ALG;
+		$this->render_radio_buttons(
+			self::ALLOWED_ID_TOKEN_ALGS,
+			$args['label_for'],
+			$args['opt_name'],
+			$curr_value
+		);
+		$this->render_field_description(
+			__( 'This value can be found the Application settings in the ', 'wp-auth0' ) .
+			$this->get_dashboard_link( 'applications' ) .
+			__( ' under Show Advanced Settings > OAuth > "JsonWebToken Signature Algorithm"', 'wp-auth0' )
+		);
+	}
+
+	/**
+	 * Render form field and description for the `cache_expiration` option.
+	 * IMPORTANT: Internal callback use only, do not call this function directly!
+	 *
+	 * @param array $args - callback args passed in from add_settings_field().
+	 *
+	 * @see WP_Auth0_Admin_Generic::init_option_section()
+	 * @see add_settings_field()
+	 */
+	public function render_cache_expiration( $args = [] ) {
+
+		$this->render_text_field( $args['label_for'], $args['opt_name'], 'number' );
+		printf(
+			' <button id="auth0_delete_cache_transient" class="button button-secondary">%s</button>',
+			__( 'Delete Cache', 'wp-auth0' )
+		);
+		$this->render_field_description( __( 'JWKS cache expiration in minutes (use 0 for no caching)', 'wp-auth0' ) );
+		$domain = $this->options->get( 'domain' );
+		if ( $domain ) {
+			$this->render_field_description(
+				sprintf(
+					'<a href="https://%s/.well-known/jwks.json" target="_blank">%s</a>',
+					$domain,
+					__( 'View your JWKS here', 'wp-auth0' )
+				)
+			);
+		}
+	}
+
+	/**
+	 * Render form field and description for the `wordpress_login_enabled` option.
+	 * IMPORTANT: Internal callback use only, do not call this function directly!
+	 *
+	 * @param array $args - callback args passed in from add_settings_field().
+	 *
+	 * @see WP_Auth0_Admin_Generic::init_option_section()
+	 * @see add_settings_field()
+	 */
+	public function render_allow_wordpress_login( $args = [] ) {
+
+		$isset_desc = sprintf(
+			'<code class="code-block"><a href="%s?wle" target="_blank">%s?wle</a></code>',
+			wp_login_url(),
+			wp_login_url()
+		);
+		$code_desc  = '<code class="code-block">' . __( 'Save settings to generate URL.', 'wp-auth0' ) . '</code>';
+		$wle_code   = $this->options->get( 'wle_code' );
+		if ( $wle_code ) {
+			$code_desc = str_replace( '?wle', '?wle=' . $wle_code, $isset_desc );
+		}
+		$buttons = [
+			[
+				'label' => __( 'Never', 'wp-auth0' ),
+				'value' => 'no',
+			],
+			[
+				'label' => __( 'Via a link under the Auth0 form', 'wp-auth0' ),
+				'value' => 'link',
+				'desc'  => __( 'URL is the same as below', 'wp-auth0' ),
+			],
+			[
+				'label' => __( 'When "wle" query parameter is present', 'wp-auth0' ),
+				'value' => 'isset',
+				'desc'  => $isset_desc,
+			],
+			[
+				'label' => __( 'When "wle" query parameter contains specific code', 'wp-auth0' ),
+				'value' => 'code',
+				'desc'  => $code_desc,
+			],
+		];
+		printf(
+			'<div class="subelement"><span class="description">%s.</span></div><br>',
+			__( 'Logins and signups using the original form will NOT be pushed to Auth0', 'wp-auth0' )
+		);
+		$this->render_radio_buttons(
+			$buttons,
+			$args['label_for'],
+			$args['opt_name'],
+			$this->options->get( $args['opt_name'] ),
+			true
+		);
+	}
+
+	/**
+	 * Render description for the `wpa0_allow_signup` option.
+	 * IMPORTANT: Internal callback use only, do not call this function directly!
+	 *
+	 * @see WP_Auth0_Admin_Generic::init_option_section()
+	 * @see add_settings_field()
+	 */
 	public function render_allow_signup() {
+
 		if ( is_multisite() ) {
-			$this->render_allow_signup_regular_multisite();
+			$settings_text = __(
+				'"Allow new registrations" in the Network Admin > Settings > Network Settings',
+				'wp-auth0'
+			);
 		} else {
-			$this->render_allow_signup_regular();
+			$settings_text = __( '"Anyone can register" in the WordPress General Settings', 'wp-auth0' );
 		}
-	}
-
-	public function render_allow_signup_regular_multisite() {
 		$allow_signup = $this->options->is_wp_registration_enabled();
-?>
-      <span class="description">
-        <?php echo __( 'Signup will be', 'wp-auth0' ); ?>
-
-        <?php if ( ! $allow_signup ) { ?>
-          <b><?php echo __( 'disabled', 'wp-auth0' ); ?></b>
-          <?php echo __( ' because it is enabled by the setting "Allow new registrations" in the Network Admin.', 'wp-auth0' ); ?>
-        <?php } else { ?>
-          <b><?php echo __( 'enabled', 'wp-auth0' ); ?></b>
-          <?php echo __( ' because it is enabled by the setting "Allow new registrations" in the Network Admin.', 'wp-auth0' ); ?>
-        <?php } ?>
-
-        <?php echo __( 'You can manage this setting on <code>Network Admin > Settings > Network Settings > Allow new registrations</code> (you need to set it up to <b>User accounts may be registered</b> or <b>Both sites and user accounts can be registered</b> depending on your preferences).', 'wp-auth0' ); ?>
-      </span>
-
-    <?php
+		$this->render_field_description(
+			__( 'Signups are currently ', 'wp-auth0' ) . '<b>' .
+			( $allow_signup ? __( 'enabled', 'wp-auth0' ) : __( 'disabled', 'wp-auth0' ) ) .
+			'</b>' . __( ' by this setting ', 'wp-auth0' ) . $settings_text
+		);
 	}
 
-	public function render_allow_signup_regular() {
-		$allow_signup = $this->options->is_wp_registration_enabled();
-?>
-      <span class="description">
-        <?php echo __( 'Signup will be', 'wp-auth0' ); ?>
+	/**
+	 * Validation for Basic settings tab.
+	 *
+	 * @param array $input - New options being saved.
+	 *
+	 * @return array
+	 */
+	public function basic_validation( array $input ) {
 
-        <?php if ( ! $allow_signup ) { ?>
-          <b><?php echo __( 'disabled', 'wp-auth0' ); ?></b>
-          <?php echo __( ' because it is enabled by the setting "Anyone can register" in the WordPress General Settings.', 'wp-auth0' ); ?>
-        <?php } else { ?>
-          <b><?php echo __( 'enabled', 'wp-auth0' ); ?></b>
-          <?php echo __( ' because it is enabled by the setting "Anyone can register" in the WordPress General Settings.', 'wp-auth0' ); ?>
-        <?php } ?>
+		if ( wp_cache_get( 'doing_db_update', WPA0_CACHE_GROUP ) ) {
+			return $input;
+		}
 
-        <?php echo __( 'You can manage this setting on <code>Settings > General > Membership</code>, Anyone can register', 'wp-auth0' ); ?>
-      </span>
-
-    <?php
-	}
-
-	public function render_allow_wordpress_login() {
-		$v = absint( $this->options->get( 'wordpress_login_enabled' ) );
-
-		echo $this->render_a0_switch( "wpa0_wp_login_enabled", "wordpress_login_enabled", 1, 1 == $v );
-?>
-      <div class="subelement">
-        <span class="description"><?php echo __( 'Enable to allow existing and new WordPress logins to work. If this site already had users before you installed Auth0, and you want them to still be able to use those logins, enable this.', 'wp-auth0' ); ?></span>
-      </div>
-    <?php
-	}
-
-	public function render_basic_description() {
-?>
-
-    <p class=\"a0-step-text\"><?php echo self::BASIC_DESCRIPTION; ?></p>
-
-    <?php
-	}
-	public function auth0_delete_cache_transient() {
-		if ( ! is_admin() ) return;
-
-		WP_Auth0_ErrorManager::insert_auth0_error( 'WP_Auth0_Admin_Basic::delete_cache_transient', 'deleting cache transient' );
-
-		delete_transient('WP_Auth0_JWKS_cache');
-
-	}
-	public function basic_validation( $old_options, $input ) {
-
-    // $input['registration_enabled'] = $old_options['registration_enabled'];
-
-		$input['client_id'] = sanitize_text_field( $input['client_id'] );
-		$input['cache_expiration'] = absint( $input['cache_expiration'] );
-		$input['wordpress_login_enabled'] = ( isset( $input['wordpress_login_enabled'] ) ? $input['wordpress_login_enabled'] : 0 );
-		$input['allow_signup'] = ( isset( $input['allow_signup'] ) ? $input['allow_signup'] : 0 );
-
-		// Only replace the secret or token if a new value was set. If not, we will keep the last one entered.
-		$input['client_secret'] = ( !empty( $input['client_secret'] ) ? $input['client_secret'] : $old_options['client_secret'] );
-		$input['client_secret_b64_encoded'] = ( isset( $input['client_secret_b64_encoded'] ) ? $input['client_secret_b64_encoded'] == 1 : false );
-		$input['auth0_app_token'] = ( !empty( $input['auth0_app_token'] ) ? $input['auth0_app_token'] : $old_options['auth0_app_token'] );
-
-		$error = '';
-		$completeBasicData = true;
+		$input['domain'] = $this->sanitize_text_val( $input['domain'] ?? null );
 		if ( empty( $input['domain'] ) ) {
-			$error = __( 'You need to specify domain', 'wp-auth0' );
-			$this->add_validation_error( $error );
-			$completeBasicData = false;
+			$this->add_validation_error( __( 'You need to specify a domain', 'wp-auth0' ) );
 		}
 
+		$input['custom_domain'] = $this->sanitize_text_val( $input['custom_domain'] ?? null );
+
+		$input['client_id'] = $this->sanitize_text_val( $input['client_id'] ?? null );
 		if ( empty( $input['client_id'] ) ) {
-			$error = __( 'You need to specify a client id', 'wp-auth0' );
-			$this->add_validation_error( $error );
-			$completeBasicData = false;
-		}
-		if ( empty( $input['client_secret'] ) && empty( $old_options['client_secret'] ) ) {
-			$error = __( 'You need to specify a client secret', 'wp-auth0' );
-			$this->add_validation_error( $error );
-			$completeBasicData = false;
+			$this->add_validation_error( __( 'You need to specify a Client ID', 'wp-auth0' ) );
 		}
 
-		if ( empty( $input['cache_expiration'] ) && empty( $old_options['cache_expiration'] ) ) {
-			$error = __( 'You need to specify a number for cache expiration', WPA0_LANG );
-			$this->add_validation_error( $error );
-			$completeBasicData = false;
+		$input['client_secret'] = $this->sanitize_text_val( $input['client_secret'] ?? null );
+		if ( __( '[REDACTED]', 'wp-auth0' ) === $input['client_secret'] ) {
+			// The field is loaded with "[REDACTED]" so if that value is saved, we keep the existing secret.
+			$input['client_secret'] = $this->options->get( 'client_secret' );
 		}
+		if ( empty( $input['client_secret'] ) ) {
+			$this->add_validation_error( __( 'You need to specify a Client Secret', 'wp-auth0' ) );
+		}
+
+		$input['organization'] = $this->sanitize_text_val( $input['organization'] ?? null );
+
+		$id_token_alg = $input['client_signing_algorithm'] ?? null;
+		if ( ! in_array( $id_token_alg, self::ALLOWED_ID_TOKEN_ALGS ) ) {
+			$input['client_signing_algorithm'] = $this->options->get_default( 'client_signing_algorithm' );
+		}
+
+		$input['cache_expiration'] = absint( $input['cache_expiration'] ?? 0 );
+
+		$wle = $input['wordpress_login_enabled'] ?? null;
+		if ( ! in_array( $wle, [ 'link', 'isset', 'code', 'no' ] ) ) {
+			$input['wordpress_login_enabled'] = $this->options->get_default( 'wordpress_login_enabled' );
+		}
+
+		$input['wle_code'] = $this->options->get( 'wle_code' ) ?: wp_auth0_generate_token( 24 );
 
 		return $input;
 	}
-
-
 }

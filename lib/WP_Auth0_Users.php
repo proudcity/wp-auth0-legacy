@@ -1,43 +1,52 @@
 <?php
 class WP_Auth0_Users {
-	public static function create_user( $userinfo, $role = null ) {
+
+	/**
+	 * Create a WordPress user with Auth0 data.
+	 *
+	 * @param object $userinfo - User profile data from Auth0.
+	 *
+	 * @return int|WP_Error
+	 */
+	public static function create_user( $userinfo ) {
 		$email = null;
 		if ( isset( $userinfo->email ) ) {
 			$email = $userinfo->email;
 		}
 		if ( empty( $email ) ) {
-			$email = "change_this_email@" . uniqid() .".com";
+			$email = 'change_this_email@' . uniqid() . '.com';
 		}
 
 		$valid_user = apply_filters( 'wpa0_should_create_user', true, $userinfo );
-		if ( !$valid_user )
+		if ( ! $valid_user ) {
 			return -2;
+		}
 
 		// Generate a random password
 		$password = wp_generate_password();
 
-		$firstname = "";
-		$lastname = "";
+		$firstname = '';
+		$lastname  = '';
 
 		if ( isset( $userinfo->name ) ) {
 			// Split the name into first- and lastname
-			$names = explode( " ", $userinfo->name );
+			$names = explode( ' ', $userinfo->name );
 
-			if ( count( $names ) == 1 )
+			if ( count( $names ) == 1 ) {
 				$firstname = $userinfo->name;
-			elseif ( count( $names ) == 2 ) {
+			} elseif ( count( $names ) == 2 ) {
 				$firstname = $names[0];
-				$lastname = $names[1];
-			}else {
-				$lastname = array_pop( $names );
-				$firstname = implode( " ", $names );
+				$lastname  = $names[1];
+			} else {
+				$lastname  = array_pop( $names );
+				$firstname = implode( ' ', $names );
 			}
 		}
 
-		$username = "";
+		$username = '';
 		if ( isset( $userinfo->username ) ) {
 			$username = $userinfo->username;
-		}elseif ( isset( $userinfo->nickname ) ) {
+		} elseif ( isset( $userinfo->nickname ) ) {
 			$username = $userinfo->nickname;
 		}
 		if ( empty( $username ) ) {
@@ -48,45 +57,59 @@ class WP_Auth0_Users {
 		}
 
 		$description = '';
-				
-		if (empty($description)){
-			if (isset($userinfo->headline)) {
+
+		if ( empty( $description ) ) {
+			if ( isset( $userinfo->headline ) ) {
 				$description = $userinfo->headline;
 			}
-			if (isset($userinfo->description)) {
+			if ( isset( $userinfo->description ) ) {
 				$description = $userinfo->description;
 			}
-			if (isset($userinfo->bio)) {
+			if ( isset( $userinfo->bio ) ) {
 				$description = $userinfo->bio;
 			}
-			if (isset($userinfo->about)) {
+			if ( isset( $userinfo->about ) ) {
 				$description = $userinfo->about;
 			}
 		}
 		// Create the user data array for updating first- and lastname
-		$user_data = array(
-			'user_email' => $email,
-			'user_login' => $username,
-			'user_pass' => $password,
-			'first_name' => $firstname,
-			'last_name' => $lastname,
+		$user_data = [
+			'user_email'   => $email,
+			'user_login'   => $username,
+			'user_pass'    => $password,
+			'first_name'   => $firstname,
+			'last_name'    => $lastname,
 			'display_name' => $username,
-			'description' => $description,
-		);
+			'description'  => $description,
+		];
 
-		if ( $role ) {
-			$user_data['role'] = 'administrator';
-		}
+		$user_data = apply_filters( 'auth0_create_user_data', $user_data, $userinfo );
 
 		// Update the user
 		$user_id = wp_insert_user( $user_data );
 
-		if ( !is_numeric( $user_id ) )
+		if ( ! is_numeric( $user_id ) ) {
 			return $user_id;
+		}
 
 		do_action( 'wpa0_user_created', $user_id, $email, $password, $firstname, $lastname );
 
 		// Return the user ID
 		return $user_id;
+	}
+
+	/**
+	 * Get the strategy from an Auth0 user ID.
+	 *
+	 * @param string $auth0_id - Auth0 user ID.
+	 *
+	 * @return string
+	 */
+	public static function get_strategy( $auth0_id ) {
+		if ( false === strpos( $auth0_id, '|' ) ) {
+			return '';
+		}
+		$auth0_id_parts = explode( '|', $auth0_id );
+		return $auth0_id_parts[0];
 	}
 }

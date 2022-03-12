@@ -1,29 +1,30 @@
-@import 'partials/_fonts';
 @import 'partials/_colors';
-@import 'partials/_logos';
 
 #lock-wrapper {
   width: 300px;
   margin: 30px auto;
 }
 
-#wpwrap {
-  background-color: bgColor;
 
-  .a0-wrap {  
-    font-family:'avenir roman';
-    margin-left:-10px;
+#wpwrap {
+  
+  #panel-help {
+     p, li {
+       font-size: 1.1em;
+     }
     
-    a, .link {
+    ul {
+      list-style-type disc
+      padding-left 2em
+    }
+  }
+
+  .a0-wrap {
+
+    .link {
       color:aText;
     }
-    
-    .row > .a0-separator ,
-    .a0-feedback > .a0-separator {
-      border-bottom:1px solid separatorBorder;
-      margin:30px 0;
-    }
-    
+
     .a0-header {
       text-align:center;
       border-bottom:1px solid separatorBorder;
@@ -38,10 +39,6 @@
       }
     }
 
-    .modal-body.no-padding-bottom {
-      padding-bottom:0;
-    }
-    
     #connections .loading {
       margin: 0 -15px 30px;
       background: loadingBG;
@@ -49,128 +46,92 @@
       text-align:center;
       line-height: 41px;
       border-radius: 3px;
-      
+
       .a0-spinner-css {
         width:25px;
         height:25px;
         position: relative;
         top: 7px;
         margin-right:10px;
-        
+
         border-top-color: rgba(loadingText,.3);
         border-right-color: rgba(loadingText,.3);
         border-bottom-color: rgba(loadingText,.3);
         border-left-color: rgba(loadingText,.9);
       }
     }
-    
-    @media (min-width: 768px) {
-      margin-left:-20px;
-    }
-    
+
     small, .small {
       font-size: 70%;
     }
 
-    color:text;
-    h1,h2,p {
-      color:text;
-    }
-    
     h1, .h1, h2, .h2, h3, .h3 {
       margin-top: 0;
     }
-    
+
     h3 {
       background: transparent;
       padding: 0;
     }
-    
-    h1 {
-      font-size: 32px;
-    }
-    
+
     p {
-      font-size: 17px;
-      color:softText;
-    }
-    
-    ul.list {
-      font-size: 17px;
-      color:softText;
-      
-      li {
-        list-style-type: disc;
-        margin-left: 25px;
+      &.const-setting-notice {
+        margin: 0 0 0.4em;
       }
     }
-    
+
+    code {
+      background: #e1e1e1;
+      color: #777;
+      line-height: 2em;
+
+      &.code-block {
+        display: block;
+        overflow-wrap: break-word;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        word-break: break-all;
+        padding: 0.75em 1em;
+      }
+    }
+
     textarea.code {
       font-family: Menlo, Monaco, Consolas, 'Courier New', monospace;
       font-size: 12px;
       line-height: 19px;
       padding: 10px;
     }
-    
-    .modal-dialog {
-      input[type=text],input[type=password], textarea {
-        border:1px solid settingsInputBorder;
-        line-height: 40px;
-        padding: 0 10px;
-        border-radius: 3px 3px 3px 3px;
-        width: 100%;
-        color:text;
-      }
-    }
-    
+
     .a0-buttons {
       margin: 20px 0;
-      
+
       &.extra-space {
         margin-top:50px;
       }
     }
-    
+
     form {
       margin:0;
+
+      [disabled] {
+        opacity: 0.5;
+        font-size: 0.9em;
+        margin-top: 0.3em;
+      }
     }
-    
+
     .container-fluid {
-      padding-top: 50px;
       max-width:750px;
     }
-    
-    .modal-dialog {
-      margin: 100px auto;
-    }
-    
-    .modal-body {
-      padding:30px;
-      font-size:16px;
-    }
-    
-    .modal-header {
-      h4 {
-        text-align:center;
-        font-weight:bold;
-      }
-      .close {
-        margin-top: 2px;
-      }
-    }
-    
-    .modal-footer {
-      padding:25px;
-    }
-    
+
     .bg-danger {
       padding: 17px;
       font-size: 15px;
       margin: 30px 0;
     }
-    
+
     .updated.settings-error {
-      
+
       margin: 5px 0;
 
       p {
@@ -184,72 +145,9 @@
   .a0-step-text {
     margin:30px 0 0;
   }
-  
-  .a0-button, #wpa0_choose_icon {
 
-    border-radius: 3px;
-    border: none;
-    line-height: 45px;
-    min-width: 150px;
-    text-transform: uppercase;
-    text-decoration: none;
-    font-size: 13px;
-    display: inline-block;
-    text-align: center;
-    padding: 0 30px;
-    transition: background-color 0.2s ease;
-    
-    &:focus {
-      box-shadow: none;
-      outline:none;
-    }
-    
-    &.link {
-      text-transform: none;
-      text-decoration: underline;
-      cursor:pointer;
-      min-width:0;
-      padding: 0 10px;
-    }
-
-    &.primary {
-      color: buttonPrimaryText;
-      background-color: buttonPrimaryBG;
-      
-      &:hover {
-        color: buttonPrimaryText;
-      }
-    }
-    
-    &.secondary {
-      font-weight:bold;
-      color: buttonSecondaryText;
-      background-color: buttonSecondaryBG;
-      text-decoration: underline;
-      
-      &:hover {
-        color: buttonSecondaryText;
-      }
-    }
-    
-    &.default {
-      
-      background: #fff;
-      color: rgba(0,0,0,0.86);
-      border-color: #d0d2d3;
-      text-decoration:none;
-
-      &:hover {
-        background: #d0d2d3;
-      }
-
-    }
-  }
-
-  #wpa0_choose_icon {
-    height:42px;
-    color: buttonPrimaryText;
-    background-color: buttonPrimaryBG;
+  .a0-settings-form[data-tab-showing="help"] #submit {
+    display: none;
   }
 
   .a0-steps {
@@ -263,12 +161,12 @@
       margin: auto;
       float: none;
     }
-    
+
     .steps {
       position:relative;
       top:-27px;
       text-align: center;
-      
+
       span {
         display:inline-block;
         width:50px;
@@ -281,7 +179,7 @@
         font-weight:bold;
         font-size:15px;
       }
-      
+
       p {
         display:none;
         color:stepDescriptionText;
@@ -291,11 +189,11 @@
         width: 105px;
         margin: auto;
       }
-      
+
       .active span{
         background-color:activeStepBG;
       }
-      
+
       .active p{
         display:block;
       }
@@ -318,11 +216,11 @@
     position: relative;
     color:text;
     padding: 15px;
-    
+
     &.a0-step-text {
       font-size: 14px;
     }
-    
+
     &.multiline {
       line-height: 25px;
       padding:10px 20px;
@@ -332,10 +230,10 @@
       background-color: noticeBG;
       color:noticeText;
     }
-    
+
     &.a0-tip {
       background-color: tipBG;
-      
+
       a {
         color:text;
       }
@@ -348,22 +246,22 @@
         font-decoration:underline;
       }
     }
-    
+
     b {
       font-weight:bold;
       text-transform:uppercase;
     }
-    
+
     a {
       text-decoration:underline;
     }
-    
+
     img {
       position:absolute;
       left:20px;
       top:20px;
     }
-    
+
     .a0-button {
       border: 0;
       margin: -4px;
@@ -373,179 +271,63 @@
       padding: 10px 15px;
     }
   }
-
-  .modal-content {
-    .a0-message {
-      margin:20px 0;
-    }
-    
-    .link {
-      line-height: 25px;
-      margin-bottom: 20px;
-      cursor:pointer;
-    }
-  }
-
-  .a0-profiles {
-    margin-top: 30px;
-    margin-bottom: 30px;
-
-    @media (min-width: 768px) {
-      .col:nth-of-type(1) {
-        padding-left: 0;
-        padding-right: 10px;
-      }
-      .col:nth-of-type(2) {
-        padding-left: 10px;
-        padding-right: 0;
-      }
-    }
-    
-    .profile {
-      background-color: profileBG;
-      border-radius: 3px;
-      padding:25px;
-      text-align: center;
-      margin-bottom:20px;
-      
-      h2 {
-        font-size: 22px;
-      }
-      
-      p {
-        font-size: 14px;
-        margin: 20px 10px;
-        height: 125px;
-      }
-        
-      img {
-        width: 100px;
-        height: 100px;
-        border-radius:50px;
-        margin-bottom: 20px;
-      }
-    }
-  }
-
-  .modal-footer {
-    text-align:center;
-  }
-
-  .enterprise-connections {
-    margin-top:30px;
-    padding:0;
-    
-    .connection {
-      background-color:enterpriseBG;
-      text-align: center;
-      border-radius:3px;
-      padding:20px;
-      margin-bottom:30px;
-      
-      .title-wrapper {
-        min-height:50px;
-      }
-      h4 {
-        line-height: 24px;
-        font-size: 17px;
-      }
-      
-      .logo {
-        width:100px;
-        height:100px;
-        border-radius:50px;
-        background-size: 55% !important;
-        margin: 0 auto 20px;
-      }
-      
-      a {
-        color:text;
-        cursor:pointer;
-      }
-    }
-  }
-
-  .connections-wrapper {
-    margin-top:30px;
-    padding: 0 15px;
-    
-    @media (min-width: 768px) { 
-      height:600px;
-      overflow-y:scroll;
-      
-      &::-webkit-scrollbar {
-        width: 14px;
-      }
-
-      &::-webkit-scrollbar-track {
-        background: #F3F3F3;
-        border-radius: 8px;
-        border: 3px solid white;
-      }
-
-      &::-webkit-scrollbar-thumb {
-        border: 3px solid white;
-        border-radius: 8px;
-        background: #D9D9DE;
-      }
-    }
-  }
+  
   .connections {
     border-top: 1px #d0d2d3 solid;
     border-left: 1px #d0d2d3 solid;
-    
+
     .connection {
       float:left;
       // width:50%;
       border-top:none;
       background-color:#F7F7F7;
-      
+
       border-right: 1px #d0d2d3 solid;
       border-bottom: 1px #d0d2d3 solid;
-      
+
       .a0-switch {
         float:right;
         position: relative;
         top: 35px;
         right: 15px;
       }
-      
+
       .logo {
         width:100px;
         height:70px;
         margin: 15px;
         padding-right: 15px;
         padding-left: 15px;
-          
+
         .logo-child {
           width:100px;
           height:70px;
-          
+
           background-repeat: no-repeat;
           background-position: center center;
           // background-size: contain;
           background-size: 80%;
         }
-        
+
         &[data-logo="SAP"] {
           .logo-child {
             background-size: 80%;
           }
         }
-            
+
         &[data-logo="Twitter"] {
           .logo-child {
             background-size: 60%;
           }
         }
-              
+
         &[data-logo="Box"] {
           .logo-child {
             background-size: 70%;
             transform: translateX(-10%);
           }
         }
-            
+
         &[data-logo="vk"] {
           .logo-child {
             background-size: 55%;
@@ -557,7 +339,7 @@
 
   .a0-switch {
     display:inline-block;
-    
+
     input {
       display:none
     }
@@ -582,7 +364,7 @@
       left:2px;
       background-color:#FFFFFF;
       box-shadow: 0 0 1px 0 rgba(0,0,0,0.25),0px 4px 11px 0 rgba(0,0,0,0.08),-1px 3px 3px 0 rgba(0,0,0,0.14);
-      
+
       transition: left 300ms cubic-bezier(0.42,0.8,0.58,1.2);
     }
     input:checked + label::before {
@@ -591,10 +373,10 @@
   }
 
   .a0-db-connection {
-    
+
     padding-right: 90px;
     position: relative;
-    
+
     .a0-step-text {
       margin: 30px 0;
     }
@@ -669,7 +451,7 @@
   .lock {
     padding-top:30px;
     position:relative;
-    
+
     .loading {
       position:absolute;
       top:30px;
@@ -679,20 +461,20 @@
       margin:auto;
       width:300px;
       display:none;
-      
+
       .vcenter-wrapper {
         display: table;
         height: 100%;
         margin: auto;
       }
-      
+
       .centrix {
         display: table-cell;
         vertical-align: middle;
       }
 
     }
-    
+
     &.loading .loading {
       display:block;
     }
@@ -709,16 +491,18 @@
   }
 
   .a0-admin-creation {
-    
+
     margin-top:20px;
 
-    input[type=text], input[type=password] {
+    input[type=text],
+    input[type=password],
+    input[type=url] {
       width:100%;
       border:1px solid adminFormBorder;
       height: 50px;
-      line-height: 40px;
+      line-height: 1em;
       padding: 10px;
-      
+
       &#admin-email {
         border-radius: 3px 3px 0 0;
         background-color: adminFormBG;
@@ -732,12 +516,12 @@
 
   .a0-final-step {
     text-align:center;
-    
+
     h1 {
       margin-bottom: 0px;
       margin-top: 30px;
     }
-    
+
     @-webkit-keyframes fill {
       100% {
         box-shadow: inset 0px 0px 0px 45px #7ac142;
@@ -748,7 +532,7 @@
         box-shadow: inset 0px 0px 0px 45px #7ac142;
       }
     }
-    
+
     .checkmark {
       width: 90px;
       height: 90px;
@@ -779,24 +563,42 @@
 
   .settings {
     h3 {
-      margin: 30px 0 10px;
+      margin: 1.25em 0 0.75em;
     }
     
+    hr {
+      margin: 2em 0
+    }
+
     .a0-message.manage {
       margin-bottom: 30px;
       margin-top: 30px;
     }
-    
+
     .nav-tabs {
-      margin: 30px 0; 
-      
+      margin: 30px 0;
+      border-bottom: 1px solid rgb(217, 217, 217);
+      font-size: 1.2em;
+
       a {
-        color:navbarText;
+        color:aText;
         box-shadow: none;
-        font-size: 17px;
+        text-decoration: none;
+        display: inline-block;
+        padding: 0.5em 0;
+        margin: 0 2em -1px 0;
+        
+        &:hover {
+          color: black;
+        }
+        
+        &.a0-active-tab {
+          border-bottom: 1px solid black;
+          color: black;
+        }
       }
     }
-    
+
     .a0-step-text {
       margin: 0 0 30px;
     }
@@ -806,43 +608,51 @@
     .no-bottom-margin {
       margin-bottom: 0;
     }
-    
-    .form-table th, .form-table label, .form-wrap label {
-      color:formFieldsText;
+
+    .form-table th,
+    .form-table label,
+    .form-wrap label {
+      color: formFieldsText;
     }
-    
-    input[type=text],input[type=password], textarea {
+
+    input[type=text],
+    input[type=password],
+    input[type=url],
+    textarea {
       border:1px solid settingsInputBorder;
       padding: 0 10px;
       border-radius: 3px 3px 3px 3px;
       width: 100%;
       color:text;
     }
-    
-    input[type=text],input[type=password] {
-      line-height: 40px;
+
+    input[type=text],
+    input[type=password],
+    input[type=url] {
+      line-height: 1em;
+      height: 40px;
     }
-    
+
     #wpa0_icon_url {
       width: 50%;
       display: inline-block;
     }
-    
+
     .subelement {
       padding:5px 0;
     }
-    
+
     .link {
       font-weight: bold;
       text-decoration: underline;
       cursor: pointer;
     }
-    
-    .nav>li>a {    
+
+    .nav>li>a {
       padding: 10px 0;
       margin-right: 40px;
       font-size: 15px;
-      
+
       @media (max-width: 768px) {
         margin-right: 10px;
       }
@@ -857,24 +667,30 @@
       color: #33B6E3;
       border-color:transparent transparent #33B6E3;
     }
-    
+
     .form-wrap p, p.description, p.help, span.description {
       font-style: normal;
       color: softText;
     }
 
+    p.description,
+    span.description {
+      font-size: 14px;
+      line-height: 1.5em;
+    }
+
     label {
       margin-right: 10px;
     }
-    
+
     .connections {
       margin-top:30px;
     }
   }
 
   .a0-table {
-    margin:30px;
-    width: initial;
+    margin: 2em 2%;
+    width: 96%;
   }
 
   #manuallySetToken {
@@ -883,10 +699,10 @@
 
   .a0-feedback {
     background-color: profileBG;
-    padding:30px;   
+    padding:30px;
     margin-top: 30px;
     border-radius: 3px;
-    
+
     h2 {
       font-size:18px;
       margin-bottom:15px;
@@ -894,33 +710,33 @@
         margin:0;
       }
     }
-    
+
     .a0-separator {
       margin:20px 0;
     }
-      
+
     input.feedback_calification {
-      display:none; 
+      display:none;
     }
 
     input:checked + .feedback-face {
       opacity:1;
     }
-    
+
     .a0-buttons {
       margin:15px 0 0;
-      
-      .a0-button{ 
+
+      .a0-button{
         min-width: auto;
         cursor:pointer;
       }
     }
-    
+
     textarea {
       padding:10px;
       height:90px;
     }
-    
+
     .feedback-face {
       width:40px;
       height:40px;
@@ -949,6 +765,27 @@
       &.calification-5 {
         background-image: url('../img/rates/05.svg');
       }
+    }
+  }
+
+  .a0-vert-radio {
+    margin: 0 0 1.25em;
+
+    label {
+      margin: 0;
+    }
+
+    p {
+      padding-left: 24px;
+    }
+
+    input {
+      margin-right: 8px;
+    }
+
+    .code-block {
+      padding: 0.5em 1em;
+      font-size: 11px;
     }
   }
 }
