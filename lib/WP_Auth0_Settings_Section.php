@@ -21,7 +21,7 @@ class WP_Auth0_Settings_Section {
 	}
 
 	public function init() {
-		add_action( 'admin_menu', array( $this, 'init_menu' ), 95.55, 0 );
+		add_action( 'admin_menu', array( $this, 'init_menu' ), 95, 0 );
 	}
 
 	public function init_menu() {

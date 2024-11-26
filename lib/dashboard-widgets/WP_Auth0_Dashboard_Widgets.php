@@ -13,11 +13,11 @@ class WP_Auth0_Dashboard_Widgets {
 	}
 
 	public function init() {
-		add_action( 'wp_dashboard_setup', array( $this, 'set_up' ) );
-		add_action( 'admin_footer', array( $this, 'render' ) );
-
-		add_action( 'admin_notices', array( $this, 'show_admin_notice' ) );
-		add_action( 'admin_init', array( $this, 'notice_ignore' ) );
+	//   add_action( 'wp_dashboard_setup', array( $this, 'set_up' ) );
+	//   add_action( 'admin_footer', array( $this, 'render' ) );
+    //
+	//   add_action( 'admin_notices', array( $this, 'show_admin_notice' ) );
+	//   add_action( 'admin_init', array( $this, 'notice_ignore' ) );
 	}
 
 	public function show_admin_notice() {
@@ -205,7 +205,7 @@ class WP_Auth0_Dashboard_Widgets {
 		);
 
 		foreach ( $widgets as $widget ) {
-			wp_add_dashboard_widget( $widget->getId(), $widget->getName(), array( $widget, 'render' ) );
+			//wp_add_dashboard_widget( $widget->getId(), $widget->getName(), array( $widget, 'render' ) );
 		}
 	}
 
