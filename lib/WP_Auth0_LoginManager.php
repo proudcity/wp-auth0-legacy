@@ -56,7 +56,10 @@ class WP_Auth0_LoginManager {
 
     echo $previous_html;
 
-    if ( !is_user_logged_in() ) {
+    // Skip SLO in the Customizer preview iframe — the nested iframe context blocks
+    // Auth0's third-party cookies, causing checkSession to return login_required and
+    // log out a healthy session on every refresh. See issue #2150.
+    if ( ! is_user_logged_in() || is_customize_preview() ) {
       return;
     }
 
@@ -73,13 +76,12 @@ class WP_Auth0_LoginManager {
       return;
     }
 
-    $lock_options = new WP_Auth0_Lock10_Options();
-    $cdn = $this->a0_options->get('auth0js-cdn');
-    $client_id = $this->a0_options->get( 'client_id' );
-    $domain = $this->a0_options->get( 'domain' );
-    $logout_url = wp_logout_url( get_permalink() ) . '&SLO=1';
-
-    include WPA0_PLUGIN_DIR . 'templates/auth0-singlelogout-handler.php';
+    // Front-end SLO checkSession removed — see issue #2150.
+    // The auth0.js silent-auth check returned login_required on strict-cookie
+    // browsers (Safari ITP, Firefox ETP, Chrome incognito, Brave) and inside
+    // the customizer iframe, causing healthy sessions to be logged out on
+    // every refresh. The server-side logout() handler still services the
+    // WP admin-bar logout flow.
   }
 
   public function logout() {
@@ -91,7 +93,8 @@ class WP_Auth0_LoginManager {
     $auto_login = absint( $this->a0_options->get( 'auto_login' ) );
 
     if ( $slo && isset( $_REQUEST['SLO'] ) ) {
-      $redirect_to = $_REQUEST['redirect_to'];
+      $redirect_to = isset( $_REQUEST['redirect_to'] ) ? esc_url_raw( wp_unslash( $_REQUEST['redirect_to'] ) ) : home_url();
+      $redirect_to = wp_validate_redirect( $redirect_to, home_url() );
       wp_redirect( $redirect_to );
       die();
     }

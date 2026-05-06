@@ -1,5 +1,15 @@
 # Change Log
 
+## [3.4.2] (2026-05-06)
+
+**Fixed**
+- Suppress front-end SLO `checkSession` script that treated `login_required` from strict-cookie browsers (Safari ITP, Firefox ETP, Chrome incognito, Brave) as a real logout signal, causing healthy authenticated sessions to be logged out on every page refresh (issue [#2150](https://github.com/proudcity/wp-proudcity/issues/2150)).
+- Added `is_customize_preview()` guard in `auth0_singlelogout_footer()` to prevent the SLO handler from running inside the Customizer preview iframe, which reproduced the spurious logout 100% of the time.
+- Validated and sanitized `redirect_to` in the `logout()` SLO branch using `wp_unslash()`, `esc_url_raw()`, and `wp_validate_redirect()` to close an open-redirect vector on the `?SLO=1` logout path.
+- Gutted `templates/auth0-singlelogout-handler.php` to remove unescaped JS echoes; the template is no longer included anywhere.
+
+References: https://github.com/proudcity/wp-proudcity/issues/2150
+
 ## [3.4.0](https://github.com/auth0/wp-auth0/tree/3.4.0) (2018-01-08)
 [Full Changelog](https://github.com/auth0/wp-auth0/compare/3.3.2...3.4.0)
 

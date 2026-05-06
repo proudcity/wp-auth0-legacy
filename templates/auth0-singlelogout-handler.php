@@ -1,27 +1,8 @@
-<script id="auth0" src="<?php echo $cdn ?>"></script>
-<script type="text/javascript">
-(function(){
-
-  var uuids = '<?php echo $user_profile->user_id; ?>';
-  document.addEventListener("DOMContentLoaded", function() {
-    if (typeof(auth0) === 'undefined') {
-      return;
-    }
-
-    var webAuth = new auth0.WebAuth({
-      clientID:'<?php echo $client_id; ?>',
-      domain:'<?php echo $domain; ?>'
-    });
-
-    var options = <?php echo json_encode( $lock_options->get_sso_options() ); ?>;
-    webAuth.checkSession(options, function (err, authResult) {
-      if (err !== null) {
-        if(err.error ==='login_required') {
-          window.location = '<?php echo html_entity_decode( $logout_url ); ?>';
-        }
-      }
-    });
-
-  });
-})();
-</script>
+<?php
+// Intentionally left empty.
+// The auth0.js front-end checkSession SLO handler was removed in response
+// to issue https://github.com/proudcity/wp-proudcity/issues/2150 — silent
+// auth returned login_required on strict-cookie browsers and inside the
+// customizer iframe, logging out healthy sessions on every refresh.
+// The server-side logout() flow in WP_Auth0_LoginManager still handles
+// the WP admin-bar logout link and ?SLO=1 redirects.
