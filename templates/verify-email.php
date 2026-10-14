@@ -2,7 +2,7 @@
 <br/>
 <strong><a id="resend" href="#"><?php echo __( 'Resend verification email.', 'wp-auth0' );?> </a></strong>
 <br/><br/>
-<a href="<?php echo wp_login_url()?>"> <?php echo __( '← Login', 'wp-auth0' ) ?> </a>
+<a href="<?php echo esc_url( wp_login_url( admin_url() ) ); ?>"> <?php echo __( '← Login', 'wp-auth0' ) ?> </a>
 <script src="//code.jquery.com/jquery-1.12.0.min.js"></script>
 <script type="text/javascript">
     function resendEmail() {

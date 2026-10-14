@@ -1,5 +1,17 @@
 # Change Log
 
+## 2026.10.14.1028
+
+**Fixed**
+- Removed the silent SSO login handler: `WP_Auth0_LoginManager::auth0_sso_footer()`, the `login_message` filter that called it, and `templates/auth0-sso-handler-lock10.php`. auth0.js 9.0.0's `checkSession` never returns a `code`, so the template's only live branch POSTed an empty `token` to `/?auth0=implicit`, which threw "Wrong number of segments" and a 500 whenever the browser had a live Auth0 session.
+- Fixed "Forbidden" on the "← Login" link in `WP_Auth0_LoginManager::init_auth0()` and `templates/verify-email.php` by changing bare `wp_login_url()` to `esc_url( wp_login_url( admin_url() ) )`, so the link carries `redirect_to=` past the tenant `.htaccess` BLOCK_LOGIN rule.
+- Escaped the exception message with `esc_html()` in both `init_auth0()` `wp_die` catch blocks, closing a reflected XSS via the `error_description`/`error` query vars.
+
+**Added**
+- PHPUnit 11 + Brain Monkey 2.6 test harness (`composer.json`, `phpunit.xml`, `tests/bootstrap.php`, `tests/LoginManagerTest.php`), no prior tests existed for this plugin.
+
+References: https://github.com/proudcity/wp-proudcity/issues/2962
+
 ## [3.4.2] (2026-05-06)
 
 **Fixed**

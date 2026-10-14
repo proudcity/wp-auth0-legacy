@@ -26,32 +26,15 @@ class WP_Auth0_LoginManager {
     add_action( 'wp_login', array( $this, 'end_session' ) );
     add_action( 'login_init', array( $this, 'login_auto' ) );
     add_action( 'template_redirect', array( $this, 'init_auth0' ), 1 );
-    //add_action( 'wp_footer', array( $this, 'auth0_sso_footer' ) );
     add_action( 'wp_footer', array( $this, 'auth0_singlelogout_footer' ) );
-    add_filter( 'login_message', array( $this, 'auth0_sso_footer' ) );
+
+    // Silent SSO login_message filter removed — see issue #2962.
+    // auth0.js 9.0.0's checkSession never returns a `code`, so the handler's
+    // only live branch posted idToken: null to /?auth0=implicit, which threw
+    // "Wrong number of segments" whenever the browser had a live Auth0
+    // session. The server-side login flow isn't changed.
   }
 
-  public function auth0_sso_footer( $previous_html ) {
-
-    echo $previous_html;
-
-    if ( is_user_logged_in() ) {
-      return;
-    }
-
-    $lock_options = new WP_Auth0_Lock10_Options();
-
-    $sso = $lock_options->get_sso();
-
-    if ( $sso ) {
-      $client_id = $lock_options->get_client_id();
-      $domain = $lock_options->get_domain();
-      $cdn = $this->a0_options->get('auth0js-cdn');
-
-      wp_enqueue_script( 'wpa0_auth0js', $cdn );
-      include WPA0_PLUGIN_DIR . 'templates/auth0-sso-handler-lock10.php';
-    }
-  }
   public function auth0_singlelogout_footer( $previous_html ) {
 
     echo $previous_html;
@@ -176,15 +159,15 @@ class WP_Auth0_LoginManager {
     } catch (WP_Auth0_LoginFlowValidationException $e) {
 
       $msg = __( 'There was a problem with your log in', 'wp-auth0' );
-      $msg .= ' '. $e->getMessage();
+      $msg .= ' '. esc_html( $e->getMessage() );
       $msg .= '<br/><br/>';
-      $msg .= '<a href="' . wp_login_url() . '">' . __( '← Login', 'wp-auth0' ) . '</a>';
+      $msg .= '<a href="' . esc_url( wp_login_url( admin_url() ) ) . '">' . __( '← Login', 'wp-auth0' ) . '</a>';
       wp_die( $msg );
 
     } catch (WP_Auth0_BeforeLoginException $e) {
 
       $msg = __( 'You have logged in successfully, but there is a problem accessing this site', 'wp-auth0' );
-      $msg .= ' '. $e->getMessage();
+      $msg .= ' '. esc_html( $e->getMessage() );
       $msg .= '<br/><br/>';
       $msg .= '<a href="' . wp_logout_url() . '">' . __( '← Logout', 'wp-auth0' ) . '</a>';
       wp_die( $msg );
