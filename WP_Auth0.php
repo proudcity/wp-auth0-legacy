@@ -2,7 +2,7 @@
 /**
  * Plugin Name: PLUGIN_NAME - using this
  * Description: PLUGIN_DESCRIPTION
- * Version: 2026.10.14.1028
+ * Version: 2026.11.09.1106
  * Author: Auth0
  * Author URI: https://auth0.com
  */

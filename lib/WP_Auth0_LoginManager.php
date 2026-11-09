@@ -162,17 +162,24 @@ class WP_Auth0_LoginManager {
       $msg .= ' '. esc_html( $e->getMessage() );
       $msg .= '<br/><br/>';
       $msg .= '<a href="' . esc_url( wp_login_url( admin_url() ) ) . '">' . __( '← Login', 'wp-auth0' ) . '</a>';
-      wp_die( $msg );
+      wp_die( $msg, '', array( 'response' => 400 ) );
 
     } catch (WP_Auth0_BeforeLoginException $e) {
 
       $msg = __( 'You have logged in successfully, but there is a problem accessing this site', 'wp-auth0' );
       $msg .= ' '. esc_html( $e->getMessage() );
       $msg .= '<br/><br/>';
-      $msg .= '<a href="' . wp_logout_url() . '">' . __( '← Logout', 'wp-auth0' ) . '</a>';
-      wp_die( $msg );
+      $msg .= '<a href="' . esc_url( wp_logout_url() ) . '">' . __( '← Logout', 'wp-auth0' ) . '</a>';
+      wp_die( $msg, '', array( 'response' => 403 ) );
 
-    } catch (Exception $e) {
+    } catch ( \Throwable $e ) {
+
+      error_log( sprintf( 'wp-auth0 init_auth0: %s: %s in %s:%d', get_class( $e ), $e->getMessage(), $e->getFile(), $e->getLine() ) );
+
+      $msg = __( 'There was a problem with your log in', 'wp-auth0' );
+      $msg .= '<br/><br/>';
+      $msg .= '<a href="' . esc_url( wp_login_url( admin_url() ) ) . '">' . __( '← Login', 'wp-auth0' ) . '</a>';
+      wp_die( $msg, '', array( 'response' => 400 ) );
 
     }
 
@@ -309,8 +316,22 @@ class WP_Auth0_LoginManager {
 
   public function implicit_login() {
 
+    // Same truthiness as WP_Auth0_Lock10_Options::_get_boolean() so the endpoint
+    // and the login UI agree on whether the implicit flow is on.
+    $implicit = $this->a0_options->get( 'auth0_implicit_workflow' );
+    $implicit = 1 === (int) $implicit || 'true' === strtolower( (string) $implicit );
+
+    if (
+      ! $implicit
+      ||! isset( $_SERVER['REQUEST_METHOD'] ) || $_SERVER['REQUEST_METHOD'] !== 'POST'
+      || ! isset( $_POST['token'] ) || ! is_string( $_POST['token'] ) || trim( $_POST['token'] ) === ''
+    ) {
+      throw new WP_Auth0_LoginFlowValidationException( __( 'Invalid login request.', 'wp-auth0' ) );
+    }
+
     $token = $_POST['token'];
-    $stateFromGet = json_decode( base64_decode( $_POST['state'] ) );
+    $state = isset( $_POST['state'] ) && is_string( $_POST['state'] ) ? $_POST['state'] : '';
+    $stateFromGet = json_decode( base64_decode( $state ) );
 
     $secret = $this->a0_options->get_client_secret_as_key();
 
@@ -341,7 +362,7 @@ class WP_Auth0_LoginManager {
         }
       }
 
-    } catch( UnexpectedValueException $e ) {
+    } catch( \UnexpectedValueException | \DomainException $e ) {
       WP_Auth0_ErrorManager::insert_auth0_error( 'implicit_login', $e );
 
       error_log( $e->getMessage() );

@@ -1,5 +1,20 @@
 # Change Log
 
+## 2026.11.09.1106
+
+**Fixed**
+- `/?auth0=implicit` returned HTTP 500 to vulnerability scanners on every tenant (532 in one hour on alvordtx from UT-Dorkbot). `WP_Auth0_LoginManager::implicit_login()` now rejects the request before any token decode when the implicit workflow is off, the method isn't POST, or `token` is missing, empty or not a string. These return 400 and no longer write a row to `auth0_error_log` (a 20-row option, so every scanner hit was a DB write that pushed real errors out). No tenant has the implicit workflow on, so every hit now gets a cheap 400.
+- `init_auth0()` passes a response code to `wp_die()`: 400 for login validation failures, 403 for `WP_Auth0_BeforeLoginException`, instead of the default 500.
+- The empty `catch ( Exception )` in `init_auth0()` is now `catch ( \Throwable )`: it logs class, message, file and line with `error_log()` and returns a generic 400. Errors that used to be silently swallowed (page rendered as 200) or escape as a fatal (`TypeError` from `token[]=x`) are now handled.
+- `implicit_login()` also catches `DomainException` from php-jwt (bad `alg`, missing `kid`), and reads `state` defensively.
+- The implicit-workflow check matches `WP_Auth0_Lock10_Options::_get_boolean()`, so the endpoint and the login UI agree on whether implicit is on.
+- Escaped `wp_logout_url()` in the BeforeLogin "← Logout" link.
+
+**Added**
+- 9 tests in `tests/LoginManagerTest.php` covering GET, junk/empty/array token, implicit on vs off, error-log writes, 403 and the `\Throwable` catch.
+
+References: https://github.com/proudcity/wp-proudcity/issues/3015
+
 ## 2026.10.14.1028
 
 **Fixed**
