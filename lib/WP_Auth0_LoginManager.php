@@ -266,7 +266,25 @@ class WP_Auth0_LoginManager {
         throw new WP_Auth0_LoginFlowValidationException( );
       }
 
-      $userinfo = json_decode( $response['body'] );
+      $status = (int) wp_remote_retrieve_response_code( $response );
+      $body = wp_remote_retrieve_body( $response );
+      $userinfo = json_decode( $body );
+
+      if ( 200 !== $status || ! is_object( $userinfo ) || ( empty( $userinfo->sub ) && empty( $userinfo->user_id ) ) ) {
+        // A 429/401/403 error body must never be treated as the user's profile.
+        WP_Auth0_ErrorManager::insert_auth0_error( 'init_auth0_userinfo', new WP_Error( (string) $status, substr( (string) $body, 0, 300 ) ) );
+
+        error_log( sprintf(
+          'wp-auth0 redirect_login: user profile request returned HTTP %d (x-ratelimit-remaining=%s, x-ratelimit-reset=%s): %s',
+          $status,
+          wp_remote_retrieve_header( $response, 'x-ratelimit-remaining' ),
+          wp_remote_retrieve_header( $response, 'x-ratelimit-reset' ),
+          substr( (string) $body, 0, 300 )
+        ) );
+
+        throw new WP_Auth0_LoginFlowValidationException( __( 'We could not load your account details from Auth0. Please wait a minute and try logging in again.', 'wp-auth0' ) );
+      }
+
       if ( $this->login_user( $userinfo, $data->id_token, $data->access_token ) ) {
         if ( null !== $stateFromGet && isset( $stateFromGet->interim ) && $stateFromGet->interim ) {
           include WPA0_PLUGIN_DIR . 'templates/login-interim.php';
