@@ -26,10 +26,10 @@ if ( empty( $data ) ) {
 foreach ( $data as $item ) {
 ?>
     <tr>
-        <td><?php echo date( 'm/d/Y H:i:s', $item['date'] ); ?></td>
-        <td><?php echo $item['section']; ?></td>
-        <td><?php echo $item['code'] ?></td>
-        <td><?php echo $item['message'] ?></td>
+        <td><?php echo esc_html( date( 'm/d/Y H:i:s', $item['date'] ) ); ?></td>
+        <td><?php echo esc_html( $item['section'] ); ?></td>
+        <td><?php echo esc_html( $item['code'] ); ?></td>
+        <td><?php echo esc_html( $item['message'] ); ?></td>
     </tr>
 <?php
 }

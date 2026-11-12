@@ -272,14 +272,23 @@ class WP_Auth0_LoginManager {
 
       if ( 200 !== $status || ! is_object( $userinfo ) || ( empty( $userinfo->sub ) && empty( $userinfo->user_id ) ) ) {
         // A 429/401/403 error body must never be treated as the user's profile.
-        WP_Auth0_ErrorManager::insert_auth0_error( 'init_auth0_userinfo', new WP_Error( (string) $status, substr( (string) $body, 0, 300 ) ) );
+        // On a 200 the body may be a real (if incomplete) profile, so log only its shape, never its PII.
+        if ( 200 === $status ) {
+          $detail = 'HTTP 200 without sub/user_id; keys: ' . ( is_object( $userinfo ) ? implode( ',', array_keys( get_object_vars( $userinfo ) ) ) : gettype( $userinfo ) );
+        } else {
+          $detail = mb_substr( (string) $body, 0, 300 );
+        }
+        // Flatten newlines so the body can't forge extra lines in pod stdout.
+        $detail = str_replace( array( "\r", "\n" ), ' ', $detail );
+
+        WP_Auth0_ErrorManager::insert_auth0_error( 'init_auth0_userinfo', new WP_Error( $status ? (string) $status : 'no_status', $detail ) );
 
         error_log( sprintf(
           'wp-auth0 redirect_login: user profile request returned HTTP %d (x-ratelimit-remaining=%s, x-ratelimit-reset=%s): %s',
           $status,
-          wp_remote_retrieve_header( $response, 'x-ratelimit-remaining' ),
-          wp_remote_retrieve_header( $response, 'x-ratelimit-reset' ),
-          substr( (string) $body, 0, 300 )
+          implode( ',', (array) wp_remote_retrieve_header( $response, 'x-ratelimit-remaining' ) ),
+          implode( ',', (array) wp_remote_retrieve_header( $response, 'x-ratelimit-reset' ) ),
+          $detail
         ) );
 
         throw new WP_Auth0_LoginFlowValidationException( __( 'We could not load your account details from Auth0. Please wait a minute and try logging in again.', 'wp-auth0' ) );

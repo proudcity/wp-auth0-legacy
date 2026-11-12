@@ -178,6 +178,37 @@ class RedirectLoginProfileTest extends TestCase
         $this->assertFriendlyFailure( $this->runAndCaptureDie(), '200' );
     }
 
+    public function test_200_without_sub_logs_profile_keys_not_values(): void
+    {
+        $this->stubHttp( true, $this->response( 200, '{"email":"person@example.gov","name":"Pat Person"}' ) );
+        $this->makeManagerForDie = $this->makeManager( 0 );
+
+        list( , , $logged ) = $this->runAndCaptureDie();
+
+        $message = $logged[1][0]['message'];
+        $this->assertStringContainsString( 'keys: email,name', $message );
+        $this->assertStringNotContainsString( 'person@example.gov', $message );
+        $this->assertStringNotContainsString( 'Pat Person', $message );
+    }
+
+    public function test_error_body_newlines_are_flattened_in_logs(): void
+    {
+        $logFile = tempnam( sys_get_temp_dir(), 'a0log' );
+        ini_set( 'error_log', $logFile );
+        $this->stubHttp( true, $this->response( 429, "x\nwp-auth0 forged line\r\ny", array( 'x-ratelimit-remaining' => array( '0', '1' ) ) ) );
+        $this->makeManagerForDie = $this->makeManager( 0 );
+
+        list( , , $logged ) = $this->runAndCaptureDie();
+
+        $contents = file_get_contents( $logFile );
+        unlink( $logFile );
+        ini_set( 'error_log', '/dev/null' );
+
+        $this->assertStringNotContainsString( "\n", $logged[1][0]['message'] );
+        $this->assertSame( 1, substr_count( trim( $contents ), "\n" ) + 1, 'Body must not add extra log lines.' );
+        $this->assertStringContainsString( 'x-ratelimit-remaining=0,1', $contents );
+    }
+
     public function test_failure_writes_status_and_rate_limit_headers_to_error_log(): void
     {
         $logFile = tempnam( sys_get_temp_dir(), 'a0log' );
