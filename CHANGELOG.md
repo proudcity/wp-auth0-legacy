@@ -1,5 +1,17 @@
 # Change Log
 
+## 2026.11.12.1133
+
+**Fixed**
+- Auth0 logins could fail with the misleading "This account does not have an email associated" error. After the code exchange, `WP_Auth0_LoginManager::redirect_login()` fetches the user profile (Management API `/api/v2/users/{sub}` with the ID token, or `/userinfo`), but it only treated transport errors as failures. A 401/403/429/5xx error body was decoded and passed to `login_user()` as the profile, which has no `email`. Now a non-200 response, or a body that isn't an object with `sub`/`user_id`, fails the login with "We could not load your account details from Auth0. Please wait a minute and try logging in again." (HTTP 400).
+- These failures are now logged. An `init_auth0_userinfo` row goes to the Auth0 error log with the HTTP status as the code, and an `error_log()` line includes the status plus Auth0's `x-ratelimit-remaining` / `x-ratelimit-reset` headers, which will confirm or rule out the suspected Management API rate limit. Tokens are never logged. On a 200 without `sub`/`user_id`, only the profile's keys are logged, not its values. Newlines in logged text are flattened so a response body can't forge extra log lines.
+- The Auth0 Error Log admin page (`templates/a0-error-log.php`) now escapes every field with `esc_html()`. Rows can hold remote response bodies.
+
+**Added**
+- 13 tests in `tests/RedirectLoginProfileTest.php`: 401/403/429/500 on the Management API branch, 429 on the `/userinfo` branch, malformed 200 bodies, rate-limit headers and newline flattening in `error_log`, no PII on the malformed-200 path, and the valid-profile success path on both branches.
+
+References: https://github.com/proudcity/wp-proudcity/issues/3004
+
 ## 2026.11.09.1106
 
 **Fixed**
