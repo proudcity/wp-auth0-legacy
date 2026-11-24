@@ -462,7 +462,8 @@ class WP_Auth0_LoginManager {
   private function userinfo_from_id_token( $decodedToken ) {
     $userinfo = clone $decodedToken;
     $userinfo->user_id = $userinfo->sub;
-    $userinfo->email_verified = (bool) $userinfo->email_verified;
+    // Only a real true (or "true"/1 from a misbehaving mapper) counts; "false" must never become true.
+    $userinfo->email_verified = in_array( $userinfo->email_verified, array( true, "true", 1, "1" ), true );
 
     foreach ( array( 'aud', 'iss', 'exp', 'iat', 'nbf', 'nonce', 'at_hash', 'azp', 'sid', 'auth_time' ) as $claim ) {
       unset( $userinfo->$claim );

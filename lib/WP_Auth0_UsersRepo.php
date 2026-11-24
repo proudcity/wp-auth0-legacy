@@ -83,7 +83,7 @@ class WP_Auth0_UsersRepo {
 			}
 		} else {
 			$sub = $userinfo->sub;
-			list($provider, $id) = explode('|', $sub);
+			list( $provider ) = explode( '|', (string) $sub, 2 );
 			if ( $provider == "auth0" ) {
 				$isDatabaseUser = true;
 			}

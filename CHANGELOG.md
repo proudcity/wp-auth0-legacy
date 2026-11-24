@@ -1,5 +1,21 @@
 # Change Log
 
+## 2026.11.24.1421
+
+**Changed**
+- Auth0 logins no longer call the Management API to load the user's profile. `WP_Auth0_LoginManager::redirect_login()` used `/api/v2/users/{sub}` with the ID token as the bearer, and Auth0 was rejecting it for some users with 401 "Invalid token" (15 failed logins on 12 sites from 2026-11-12 to 2026-11-24, and retrying didn't help). The profile is now built from the ID token's claims, which are already signature-checked (with an `aud` check) at that point: `user_id` is set to `sub`, `sub` is kept, token fields (`aud`, `iss`, `exp`, `iat`, `nbf`, `nonce`, `at_hash`, `azp`, `sid`, `auth_time`) are dropped, and `email_verified` only counts as true for `true`, `"true"`, `1` or `"1"`.
+- The code-flow login scope is now `openid profile email` (`WP_Auth0_Lock10_Options::get_lock_options()` and `get_sso_options()`), so the ID token carries `email` and `email_verified`. The implicit-flow scope is unchanged.
+- If an ID token has no `email` or `email_verified` claim, for example a login that started before this release or the old dashboard's standalone SSO link, the plugin falls back to the Management API call with the 2026.11.12.1133 checks, and logs `wp-auth0 redirect_login: id_token has no email claim, falling back to Management API` so the fallback can be removed once nothing hits it.
+- After their next login, users' stored `wp_auth0_obj` no longer has `identities`, `user_metadata` or `app_metadata`. Users are matched by `sub`, which equals the primary identity. A fleet check on 2026-11-24 found no user whose stored Auth0 ID differs from it. The profile page now shows the social-login state for these users: no Auth0 password fields, and the email field locked. That's intended, since passwords and emails are changed in Auth0, not WordPress.
+
+**Fixed**
+- Profiles without `identities` no longer raise PHP warnings: every `identities` loop in `WP_Auth0_EditProfile`, `WP_Auth0_Amplificator` and `WP_Auth0_SocialAmplification_Widget`, the verify-email page connection lookup in `WP_Auth0.php`, and the user lookup in `login_user()` (an empty `identities` array now falls through to the `user_id` lookup). `UsersRepo::create()` no longer warns on a `sub` without `|`.
+
+**Added**
+- 13 tests in `tests/RedirectLoginProfileTest.php`, for 39 in total: no Management API call when the ID token has an email, the claims-to-profile mapping, strict `email_verified` handling (including `"false"` and `"0"`), the fallback path (200 and 401), `login_user()` with a profile that has no `identities`, the EditProfile guards, and the code-flow scope. `phpunit.xml` now sets `failOnWarning="true"`.
+
+References: https://github.com/proudcity/wp-proudcity/issues/3004
+
 ## 2026.11.12.1133
 
 **Fixed**

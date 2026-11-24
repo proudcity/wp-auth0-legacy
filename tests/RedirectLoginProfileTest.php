@@ -321,6 +321,8 @@ class RedirectLoginProfileTest extends TestCase
     {
         return array(
             'string true' => array( 'true', true ),
+            'string false' => array( 'false', false ),
+            'string 0' => array( '0', false ),
             'int 1' => array( 1, true ),
             'int 0' => array( 0, false ),
             'false' => array( false, false ),
