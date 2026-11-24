@@ -303,7 +303,7 @@ class WP_Auth0 {
 		$domain = $this->a0_options->get( 'domain' );
 		$token = $id_token;
 		$email = $userinfo->email;
-		$connection = $userinfo->identities[0]->connection;
+		$connection = isset( $userinfo->identities[0]->connection ) ? $userinfo->identities[0]->connection : null;
 		$userId = $userinfo->user_id;
 		include WPA0_PLUGIN_DIR . 'templates/verify-email.php';
 

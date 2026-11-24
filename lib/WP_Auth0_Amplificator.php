@@ -43,7 +43,7 @@ class WP_Auth0_Amplificator {
 		$current_user = get_currentauth0user();
 		$user_profile = $current_user->auth0_obj;
 
-		foreach ( $user_profile->identities as $identity ) {
+		foreach ( isset( $user_profile->identities ) ? (array) $user_profile->identities : array() as $identity ) {
 			if ( $identity->provider == 'facebook' ) {
 
 				$share_text = urlencode( $this->get_share_text( 'facebook', $page_url ) );
@@ -83,7 +83,7 @@ class WP_Auth0_Amplificator {
 		$current_user = get_currentauth0user();
 		$user_profile = $current_user->auth0_obj;
 
-		foreach ( $user_profile->identities as $identity ) {
+		foreach ( isset( $user_profile->identities ) ? (array) $user_profile->identities : array() as $identity ) {
 			if ( $identity->provider == 'twitter' ) {
 
 				$share_text = $this->get_share_text( 'twitter', $page_url );

@@ -205,6 +205,7 @@ class WP_Auth0_Lock10_Options {
     } else {
       $options["responseType"] = 'code';
       $options["redirectUri"] = $this->get_code_callback_url();
+      $options["scope"] = "openid profile email";
     }
 
     $redirect_to = null;
@@ -252,6 +253,7 @@ class WP_Auth0_Lock10_Options {
     } else {
       $extraOptions["auth"]["responseType"] = 'code';
       $extraOptions["auth"]["redirectUrl"] = $this->get_code_callback_url();
+      $extraOptions["auth"]["params"]["scope"] = "openid profile email";
     }
 
     $options_obj = array_merge_recursive( $extraOptions, $options_obj  );

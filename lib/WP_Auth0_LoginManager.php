@@ -238,6 +238,7 @@ class WP_Auth0_LoginManager {
     if ( isset( $data->access_token ) || isset( $data->id_token ) ) {
       // Get the user information
 
+      $userinfo = null;
       if ( !isset( $data->id_token ) ) {
         $data->id_token = null;
         $response = WP_Auth0_Api_Client::get_user_info( $domain, $data->access_token );
@@ -255,43 +256,51 @@ class WP_Auth0_LoginManager {
           throw new Exception( 'This token is not intended for us.' );
         }
 
-        $response = WP_Auth0_Api_Client::get_user( $domain, $data->id_token, $decodedToken->sub );
-      }
-
-      if ( $response instanceof WP_Error ) {
-        WP_Auth0_ErrorManager::insert_auth0_error( 'init_auth0_userinfo', $response );
-
-        error_log( $response->get_error_message() );
-
-        throw new WP_Auth0_LoginFlowValidationException( );
-      }
-
-      $status = (int) wp_remote_retrieve_response_code( $response );
-      $body = wp_remote_retrieve_body( $response );
-      $userinfo = json_decode( $body );
-
-      if ( 200 !== $status || ! is_object( $userinfo ) || ( empty( $userinfo->sub ) && empty( $userinfo->user_id ) ) ) {
-        // A 429/401/403 error body must never be treated as the user's profile.
-        // On a 200 the body may be a real (if incomplete) profile, so log only its shape, never its PII.
-        if ( 200 === $status ) {
-          $detail = 'HTTP 200 without sub/user_id; keys: ' . ( is_object( $userinfo ) ? implode( ',', array_keys( get_object_vars( $userinfo ) ) ) : gettype( $userinfo ) );
+        if ( ! empty( $decodedToken->email ) && isset( $decodedToken->email_verified ) ) {
+          // The ID token signature is already verified, so its claims are the profile; no Management API call needed.
+          $userinfo = $this->userinfo_from_id_token( $decodedToken );
         } else {
-          $detail = mb_substr( (string) $body, 0, 300 );
+          error_log( 'wp-auth0 redirect_login: id_token has no email claim, falling back to Management API' );
+          $response = WP_Auth0_Api_Client::get_user( $domain, $data->id_token, $decodedToken->sub );
         }
-        // Flatten newlines so the body can't forge extra lines in pod stdout.
-        $detail = str_replace( array( "\r", "\n" ), ' ', $detail );
+      }
 
-        WP_Auth0_ErrorManager::insert_auth0_error( 'init_auth0_userinfo', new WP_Error( $status ? (string) $status : 'no_status', $detail ) );
+      if ( null === $userinfo ) {
+        if ( $response instanceof WP_Error ) {
+          WP_Auth0_ErrorManager::insert_auth0_error( 'init_auth0_userinfo', $response );
 
-        error_log( sprintf(
-          'wp-auth0 redirect_login: user profile request returned HTTP %d (x-ratelimit-remaining=%s, x-ratelimit-reset=%s): %s',
-          $status,
-          implode( ',', (array) wp_remote_retrieve_header( $response, 'x-ratelimit-remaining' ) ),
-          implode( ',', (array) wp_remote_retrieve_header( $response, 'x-ratelimit-reset' ) ),
-          $detail
-        ) );
+          error_log( $response->get_error_message() );
 
-        throw new WP_Auth0_LoginFlowValidationException( __( 'We could not load your account details from Auth0. Please wait a minute and try logging in again.', 'wp-auth0' ) );
+          throw new WP_Auth0_LoginFlowValidationException( );
+        }
+
+        $status = (int) wp_remote_retrieve_response_code( $response );
+        $body = wp_remote_retrieve_body( $response );
+        $userinfo = json_decode( $body );
+
+        if ( 200 !== $status || ! is_object( $userinfo ) || ( empty( $userinfo->sub ) && empty( $userinfo->user_id ) ) ) {
+          // A 429/401/403 error body must never be treated as the user's profile.
+          // On a 200 the body may be a real (if incomplete) profile, so log only its shape, never its PII.
+          if ( 200 === $status ) {
+            $detail = 'HTTP 200 without sub/user_id; keys: ' . ( is_object( $userinfo ) ? implode( ',', array_keys( get_object_vars( $userinfo ) ) ) : gettype( $userinfo ) );
+          } else {
+            $detail = mb_substr( (string) $body, 0, 300 );
+          }
+          // Flatten newlines so the body can't forge extra lines in pod stdout.
+          $detail = str_replace( array( "\r", "\n" ), ' ', $detail );
+
+          WP_Auth0_ErrorManager::insert_auth0_error( 'init_auth0_userinfo', new WP_Error( $status ? (string) $status : 'no_status', $detail ) );
+
+          error_log( sprintf(
+            'wp-auth0 redirect_login: user profile request returned HTTP %d (x-ratelimit-remaining=%s, x-ratelimit-reset=%s): %s',
+            $status,
+            implode( ',', (array) wp_remote_retrieve_header( $response, 'x-ratelimit-remaining' ) ),
+            implode( ',', (array) wp_remote_retrieve_header( $response, 'x-ratelimit-reset' ) ),
+            $detail
+          ) );
+
+          throw new WP_Auth0_LoginFlowValidationException( __( 'We could not load your account details from Auth0. Please wait a minute and try logging in again.', 'wp-auth0' ) );
+        }
       }
 
       if ( $this->login_user( $userinfo, $data->id_token, $data->access_token ) ) {
@@ -446,6 +455,22 @@ class WP_Auth0_LoginManager {
     do_action( 'auth0_user_login' , $user->ID, $userinfo, $is_new, $id_token, $access_token );
   }
 
+  /**
+   * Builds the profile login_user() expects from verified ID token claims.
+   * Drops token mechanics and keeps sub; user_id mirrors sub like the Management API profile.
+   */
+  private function userinfo_from_id_token( $decodedToken ) {
+    $userinfo = clone $decodedToken;
+    $userinfo->user_id = $userinfo->sub;
+    $userinfo->email_verified = (bool) $userinfo->email_verified;
+
+    foreach ( array( 'aud', 'iss', 'exp', 'iat', 'nbf', 'nonce', 'at_hash', 'azp', 'sid', 'auth_time' ) as $claim ) {
+      unset( $userinfo->$claim );
+    }
+
+    return $userinfo;
+  }
+
   // return true if login was successful, false otherwise
   public function login_user( $userinfo, $id_token, $access_token ) {
     // If the userinfo has no email or an unverified email, and in the options we require a verified email
@@ -467,7 +492,8 @@ class WP_Auth0_LoginManager {
     }
 
     // See if there is a user linked to the same auth0 user_id
-    if (isset($userinfo->identities)) {
+    $user = null;
+    if ( ! empty( $userinfo->identities ) ) {
       foreach ($userinfo->identities as $identity) {
         $user = $this->users_repo->find_auth0_user( "{$identity->provider}|{$identity->user_id}" );
         if ($user) {

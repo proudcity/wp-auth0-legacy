@@ -60,7 +60,7 @@ class WP_Auth0_EditProfile {
 			$connection = null;
 			$email = null;
 
-			foreach ( $user_profile->identities as $identity ) {
+			foreach ( isset( $user_profile->identities ) ? (array) $user_profile->identities : array() as $identity ) {
 				if ( $identity->provider === 'auth0' ) {
 					$connection = $identity->connection;
 					if ( isset( $identity->email ) ) {
@@ -192,7 +192,7 @@ class WP_Auth0_EditProfile {
 
 		$connection = null;
 
-		foreach ( $user_profile->identities as $identity ) {
+		foreach ( isset( $user_profile->identities ) ? (array) $user_profile->identities : array() as $identity ) {
 			if ( $identity->provider === 'auth0' ) {
 				$connection = $identity->connection;
 			}
@@ -232,7 +232,7 @@ class WP_Auth0_EditProfile {
 		if ( $user_profile && !empty( $user_profile ) ) {
 			$connection = null;
 
-			foreach ( $user_profile->identities as $identity ) {
+			foreach ( isset( $user_profile->identities ) ? (array) $user_profile->identities : array() as $identity ) {
 				if ( $identity->provider === 'auth0' ) {
 					$connection = $identity->connection;
 				}
@@ -289,7 +289,7 @@ class WP_Auth0_EditProfile {
 
 			$connection = null;
 
-			foreach ( $user_profile->identities as $identity ) {
+			foreach ( isset( $user_profile->identities ) ? (array) $user_profile->identities : array() as $identity ) {
 				if ($identity->provider === 'auth0') {
 					$connection = $identity->connection;
 				}
