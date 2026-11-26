@@ -2,6 +2,8 @@
 
 ## 2026.11.26.1132
 
+Deployed fleet-wide 2026-11-26 (prod release 2026.11.26.1218).
+
 **Security**
 - The `wpauth0_export_users` nonce was never checked on the `admin_action` path because the check tested `null === $user_ids`, and WordPress passes an empty string there. It now checks `! is_array( $user_ids )`; only the Users list bulk action passes an array.
 - The Auth0 setup consent return (`admin.php?page=wpa0-setup&callback=1`) trusted a bare `state=social|enterprise`, so a forged link could make an admin's browser store an attacker's Auth0 domain and Management API token. `state` is now `<type>.<nonce>` (`WP_Auth0_InitialSetup_ConnectionProfile::build_consent_url()`), and `WP_Auth0_InitialSetup_Consent::callback()` verifies the nonce before exchanging the code and answers 403 otherwise. The login callback `state` is unchanged.
