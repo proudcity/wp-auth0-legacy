@@ -112,6 +112,7 @@ class WP_Auth0_Admin_Basic extends WP_Auth0_Admin_Generic {
 
 	      var data = {
 	        'action': 'auth0_delete_cache_transient',
+	        'nonce': '<?php echo esc_js( wp_create_nonce( 'auth0_delete_cache_transient' ) ); ?>'
 	      };
 
 	      jQuery('#auth0_delete_cache_transient').attr('disabled', 'true');
@@ -213,7 +214,10 @@ class WP_Auth0_Admin_Basic extends WP_Auth0_Admin_Generic {
     <?php
 	}
 	public function auth0_delete_cache_transient() {
-		if ( ! is_admin() ) return;
+		check_ajax_referer( 'auth0_delete_cache_transient', 'nonce' );
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( array( 'message' => __( 'You are not allowed to do this.', 'wp-auth0' ) ), 403 );
+		}
 
 		WP_Auth0_ErrorManager::insert_auth0_error( 'WP_Auth0_Admin_Basic::delete_cache_transient', 'deleting cache transient' );
 

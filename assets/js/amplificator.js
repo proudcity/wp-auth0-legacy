@@ -2,6 +2,7 @@ function Auth0Amplify(ele, provider, page_url) {
 
 	var data = {
 		'action': 'auth0_amplificator',
+		'nonce': auth0_ajax.nonce,
 		'provider': provider,
 		'page_url': page_url
 	};

@@ -1,10 +1,20 @@
 # Change Log
 
+## 2026.11.26.1123
+
+**Security**
+- Every remaining `admin_action_*` and AJAX handler that changed or exposed plugin data had no capability or nonce check, so any logged-in user, a subscriber included, could request `wp-admin/admin.php?action=wpauth0_export_settings` and download every plugin option (client secret and Management API token included), or import settings, toggle Auth0 connections, and so on. Each handler below now requires `current_user_can( 'manage_options' )` (403 through `wp_die()` or `wp_send_json_error()`) and a nonce, and the forms or JS that trigger it send one: `wpauth0_export_settings`, `wpauth0_import_settings`, `wpauth0_configure_jwt`, `wpauth0_callback_step1`, `wpauth0_callback_step3_social`, `a0_initial_setup_set_connection` and `auth0_delete_cache_transient`.
+- `auth0_amplificator` (the front-end social share widget) posts as the logged-in visitor with their own social tokens, so it stays open to any logged-in user but now requires a nonce, passed to the script through `auth0_ajax.nonce`.
+- The Auth0 consent redirect back to `admin.php?page=wpa0-setup&callback=1` cannot carry a WordPress nonce, so it requires `manage_options` only (previously nothing was checked before the token exchange result was stored in the options).
+- `wpauth0_export_users` is not covered by this release.
+
+References: https://github.com/proudcity/wp-proudcity/issues/3037
+
 ## 2026.11.26.1120
 
 **Security**
 - `wp_ajax_auth0_delete_mfa` and `wp_ajax_auth0_delete_data` (`WP_Auth0_EditProfile`) only checked `is_admin()`, which is always true in admin-ajax, so any logged-in user, a subscriber included, could delete any user's Auth0 MFA enrollment through the Management API or unlink any user's `auth0_id`/`auth0_obj` meta, administrators and staff included. Both handlers now verify a nonce (`auth0_edit_profile`, passed by the profile page JS), require a positive integer `user_id` and require `current_user_can( 'edit_user', $user_id )`, so role plugins that filter `map_meta_cap` protect their users. Failures return a 403 JSON error, and successes now return JSON (`wp_send_json_success()`) so the profile page's `dataType: 'json'` callback runs.
-- Known and not fixed here: the `admin_action_*` handlers (`wpauth0_export_users`, `wpauth0_export_settings`, `wpauth0_import_settings`, `wpauth0_configure_jwt`, `wpauth0_callback_step1`, `wpauth0_callback_step3_social`) and the `wp_ajax_auth0_delete_cache_transient`, `wp_ajax_a0_initial_setup_set_connection` handlers have no capability or nonce checks. Deferred until the move to mainline Auth0.
+- The other unguarded `admin_action_*` and AJAX handlers are fixed in the next release.
 
 References: https://github.com/proudcity/wp-proudcity/issues/3037
 

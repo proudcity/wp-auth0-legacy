@@ -16,6 +16,10 @@ class WP_Auth0_InitialSetup_ConnectionProfile {
 	}
 
 	public function callback() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( __( 'You are not allowed to do this.', 'wp-auth0' ), '', array( 'response' => 403 ) );
+		}
+		check_admin_referer( 'wpauth0_callback_step1' );
 
 		$type = null;
 

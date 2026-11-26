@@ -15,6 +15,8 @@ class WP_Auth0_Amplificator {
 	}
 
 	public function share() {
+		check_ajax_referer( 'auth0_amplificator', 'nonce' );
+
 		if ( ! isset( $_POST['provider'] ) ) {
 			wp_die();
 		}

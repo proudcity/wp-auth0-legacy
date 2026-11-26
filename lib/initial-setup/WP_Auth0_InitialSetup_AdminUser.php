@@ -17,6 +17,10 @@ class WP_Auth0_InitialSetup_AdminUser {
 	}
 
 	public function callback() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( __( 'You are not allowed to do this.', 'wp-auth0' ), '', array( 'response' => 403 ) );
+		}
+		check_admin_referer( 'wpauth0_callback_step3_social' );
 
 		$current_user = wp_get_current_user();
 

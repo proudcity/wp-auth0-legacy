@@ -20,6 +20,7 @@
 
           <form action="options.php" method="post" onsubmit="return presubmit_import();" enctype="multipart/form-data">
             <input type="hidden" name="action" value="wpauth0_import_settings" />
+            <?php wp_nonce_field( 'wpauth0_import_settings' ); ?>
 
             <div id="upload-file">
               <p class="a0-step-text top-margin">Please upload the exported json file or <span class="link upload-toggle">paste the entire json</span>.</p>
@@ -41,6 +42,7 @@
 
           <form action="options.php" method="post" onsubmit="return presubmit_export();">
             <input type="hidden" name="action" value="wpauth0_export_settings" />
+            <?php wp_nonce_field( 'wpauth0_export_settings' ); ?>
 
             <p class="a0-step-text top-margin">Download the entire plugin configuration.</p>
 

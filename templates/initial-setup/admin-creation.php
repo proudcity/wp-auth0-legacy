@@ -33,6 +33,7 @@
 
         <div class="a0-buttons">
           <input type="hidden" name="action" value="wpauth0_callback_step3_social" />
+          <?php wp_nonce_field( 'wpauth0_callback_step3_social' ); ?>
           <input type="submit" class="a0-button primary" value="Submit" />
           <a onclick="onSkip()" href="<?php echo admin_url( 'admin.php?page=wpa0-setup&step=4&profile=social' ); ?>"class="a0-button link"><?php _e( "Skip this step", "wp-auth0" ); ?></a>
         </div>

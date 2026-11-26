@@ -98,6 +98,10 @@ class WP_Auth0_InitialSetup_Connections {
   }
 
   public function update_connection() {
+		check_ajax_referer( 'a0_initial_setup_set_connection', 'nonce' );
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( array( 'message' => __( 'You are not allowed to do this.', 'wp-auth0' ) ), 403 );
+		}
 
     $provider_name = $_POST["connection"];
 

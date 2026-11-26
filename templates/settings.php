@@ -165,6 +165,7 @@
 			var data = {
 				action: 'a0_initial_setup_set_connection',
 				connection: task.connection,
+				nonce: '<?php echo esc_js( wp_create_nonce( 'a0_initial_setup_set_connection' ) ); ?>',
 				enabled: task.enabled
 			};
 

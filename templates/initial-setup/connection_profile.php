@@ -21,6 +21,7 @@
       <form action="options.php" method="POST" id="profile-form">
 
         <input type="hidden" name="action" value="wpauth0_callback_step1" />
+        <?php wp_nonce_field( 'wpauth0_callback_step1' ); ?>
 
         <div class="col col-sm-6">
           <div class="profile">

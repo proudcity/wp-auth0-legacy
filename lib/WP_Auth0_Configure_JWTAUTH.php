@@ -49,6 +49,10 @@ class WP_Auth0_Configure_JWTAUTH {
 	}
 
 	public function setupjwt() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( __( 'You are not allowed to do this.', 'wp-auth0' ), '', array( 'response' => 403 ) );
+		}
+		check_admin_referer( 'wpauth0_configure_jwt' );
 
 		if ( self::is_jwt_auth_enabled() ) {
 			JWT_AUTH_Options::set( 'aud', $this->a0_options->get( 'client_id' ) );

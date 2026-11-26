@@ -207,6 +207,10 @@ class WP_Auth0_InitialSetup {
 			return;
 		}
 
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( __( 'You are not allowed to do this.', 'wp-auth0' ), '', array( 'response' => 403 ) );
+		}
+
 		if ( isset( $_REQUEST['error'] ) && 'rejected' == $_REQUEST['error'] ) {
 			wp_redirect( admin_url( 'admin.php?page=wpa0-setup&error=rejected' ) );
 			exit;

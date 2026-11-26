@@ -42,6 +42,10 @@ class WP_Auth0_Import_Settings {
 	}
 
 	public function import_settings() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( __( 'You are not allowed to do this.', 'wp-auth0' ), '', array( 'response' => 403 ) );
+		}
+		check_admin_referer( 'wpauth0_import_settings' );
 
 		if ( ! function_exists( 'wp_handle_upload' ) ) {
 			require_once ABSPATH . 'wp-admin/includes/file.php';
@@ -114,6 +118,11 @@ class WP_Auth0_Import_Settings {
 	}
 
 	public function export_settings() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( __( 'You are not allowed to do this.', 'wp-auth0' ), '', array( 'response' => 403 ) );
+		}
+		check_admin_referer( 'wpauth0_export_settings' );
+
 		header( 'Content-Type: application/json' );
 		$name = urlencode( get_auth0_curatedBlogName() );
 		header( "Content-Disposition: attachment; filename=auth0_for_wordpress_settings-$name.json" );
