@@ -6,7 +6,7 @@
 - Every remaining `admin_action_*` and AJAX handler that changed or exposed plugin data had no capability or nonce check, so any logged-in user, a subscriber included, could request `wp-admin/admin.php?action=wpauth0_export_settings` and download every plugin option (client secret and Management API token included), or import settings, toggle Auth0 connections, and so on. Each handler below now requires `current_user_can( 'manage_options' )` (403 through `wp_die()` or `wp_send_json_error()`) and a nonce, and the forms or JS that trigger it send one: `wpauth0_export_settings`, `wpauth0_import_settings`, `wpauth0_configure_jwt`, `wpauth0_callback_step1`, `wpauth0_callback_step3_social`, `a0_initial_setup_set_connection` and `auth0_delete_cache_transient`.
 - `auth0_amplificator` (the front-end social share widget) posts as the logged-in visitor with their own social tokens, so it stays open to any logged-in user but now requires a nonce, passed to the script through `auth0_ajax.nonce`.
 - The Auth0 consent redirect back to `admin.php?page=wpa0-setup&callback=1` cannot carry a WordPress nonce, so it requires `manage_options` only (previously nothing was checked before the token exchange result was stored in the options).
-- `wpauth0_export_users` is not covered by this release.
+- `wpauth0_export_users` (the Export Users page and the Users list bulk action) now also requires `manage_options` and a nonce (`wpauth0_export_users`, or the core `bulk-users` nonce for the bulk action).
 
 References: https://github.com/proudcity/wp-proudcity/issues/3037
 

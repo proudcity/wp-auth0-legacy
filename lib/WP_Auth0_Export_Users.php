@@ -50,6 +50,13 @@ class WP_Auth0_Export_Users {
 	}
 
 	public function a0_export_users( $user_ids = null ) {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( __( 'You are not allowed to do this.', 'wp-auth0' ), '', array( 'response' => 403 ) );
+		}
+		if ( null === $user_ids ) {
+			check_admin_referer( 'wpauth0_export_users' );
+		}
+
 		header( 'Content-Type: application/csv' );
 		header( 'Content-Disposition: attachment; filename=users_export.csv' );
 		header( 'Pragma: no-cache' );
@@ -103,6 +110,8 @@ class WP_Auth0_Export_Users {
 
 	public function a0_export_selected_users() {
 		if ( isset( $_GET['action'] ) && $_GET['action'] === 'a0_users_export' && isset( $_GET['users'] ) ) {
+			check_admin_referer( 'bulk-users' );
+
 			$user_ids = $_GET['users'];
 
 			if ( $user_ids ) {
