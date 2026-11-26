@@ -97,7 +97,7 @@ class WP_Auth0_SocialAmplification_Widget extends WP_Widget {
 			foreach ( $supportedProviders as $provider ) {
 
 				if ( in_array( $provider, $providers ) && in_array( $provider, $enabledProviders ) ) {
-					$js_function = "Auth0Amplify(this,'$provider', '$current_page_url')";
+					$js_function = "Auth0Amplify(this,'$provider', '" . esc_js( esc_url( $current_page_url ) ) . "')";
 				} else {
 
 					$current_page_url = urlencode( $current_page_url );

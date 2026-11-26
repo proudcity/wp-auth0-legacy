@@ -49,7 +49,9 @@ class WP_Auth0_InitialSetup_ConnectionProfile {
 
 		$scope = urlencode( implode( ' ', WP_Auth0_Api_Client::ConsentRequiredScopes() ) );
 
-		$url = "https://{$this->domain}/authorize?client_id={$client_id}&response_type=code&redirect_uri={$callback_url}&scope={$scope}&expiration=9999999999&state={$type}";
+		$state = urlencode( $type . '.' . wp_create_nonce( 'wpauth0_consent_' . $type ) );
+
+		$url = "https://{$this->domain}/authorize?client_id={$client_id}&response_type=code&redirect_uri={$callback_url}&scope={$scope}&expiration=9999999999&state={$state}";
 
 		return $url;
 	}

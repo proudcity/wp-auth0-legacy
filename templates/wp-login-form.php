@@ -18,6 +18,6 @@
             <button type="submit" class="btn btn-primary pull-right"><?php _e( 'Sign in', LP_THEME_LANG ); ?> <i class="icon icon-white icon-arrow-right"></i></button>
         </div>
     </div>
-    <input type="hidden" name="referer" value="<?php echo $_SERVER['REQUEST_URI']; ?>"/>
+    <input type="hidden" name="referer" value="<?php echo esc_attr( $_SERVER['REQUEST_URI'] ); ?>"/>
     <input type="hidden" name="portal-login" value="1"/>
 </form>

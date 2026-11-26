@@ -53,7 +53,7 @@ class WP_Auth0_Export_Users {
 		if ( ! current_user_can( 'manage_options' ) ) {
 			wp_die( __( 'You are not allowed to do this.', 'wp-auth0' ), '', array( 'response' => 403 ) );
 		}
-		if ( null === $user_ids ) {
+		if ( ! is_array( $user_ids ) ) {
 			check_admin_referer( 'wpauth0_export_users' );
 		}
 
@@ -61,7 +61,7 @@ class WP_Auth0_Export_Users {
 		header( 'Content-Disposition: attachment; filename=users_export.csv' );
 		header( 'Pragma: no-cache' );
 
-		$users = $this->db_manager->get_auth0_users( $user_ids );
+		$users = $this->db_manager->get_auth0_users( is_array( $user_ids ) ? $user_ids : null );
 
 		echo $this->process_str( "email", true );
 		echo $this->process_str( "nickname", true );

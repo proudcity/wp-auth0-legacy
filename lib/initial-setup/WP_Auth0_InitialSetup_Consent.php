@@ -39,6 +39,19 @@ class WP_Auth0_InitialSetup_Consent {
 
 	public function callback() {
 
+		if ( ! isset( $_REQUEST['state'] ) || ! is_string( $_REQUEST['state'] ) ) {
+			wp_redirect( admin_url( 'admin.php?page=wpa0-setup&error=missing_state' ) );
+			exit;
+		}
+
+		// The state is '<type>.<nonce>' (see ConnectionProfile::build_consent_url()), so a forged callback can't be replayed into the admin's session.
+		$state_parts = explode( '.', wp_unslash( $_REQUEST['state'] ), 2 );
+		$state_type = $state_parts[0];
+
+		if ( ! in_array( $state_type, array( 'social', 'enterprise' ), true ) || ! isset( $state_parts[1] ) || ! wp_verify_nonce( $state_parts[1], 'wpauth0_consent_' . $state_type ) ) {
+			wp_die( __( 'Invalid or expired Auth0 setup request. Please start the setup again.', 'wp-auth0' ), '', array( 'response' => 403 ) );
+		}
+
 		$access_token = $this->exchange_code();
 
 		if ( $access_token === null ) {
@@ -48,12 +61,7 @@ class WP_Auth0_InitialSetup_Consent {
 
 		$app_domain = $this->parse_token_domain( $access_token );
 
-		if ( ! isset( $_REQUEST['state'] ) ) {
-			wp_redirect( admin_url( 'admin.php?page=wpa0-setup&error=missing_state' ) );
-			exit;
-		}
-
-		$this->callback_with_token( $app_domain, $access_token, $_REQUEST['state'] );
+		$this->callback_with_token( $app_domain, $access_token, $state_type );
 	}
 
 	protected function parse_token_domain( $token ) {

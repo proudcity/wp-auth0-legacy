@@ -1,5 +1,16 @@
 # Change Log
 
+## 2026.11.26.1132
+
+**Security**
+- The `wpauth0_export_users` nonce was never checked on the `admin_action` path because the check tested `null === $user_ids`, and WordPress passes an empty string there. It now checks `! is_array( $user_ids )`; only the Users list bulk action passes an array.
+- The Auth0 setup consent return (`admin.php?page=wpa0-setup&callback=1`) trusted a bare `state=social|enterprise`, so a forged link could make an admin's browser store an attacker's Auth0 domain and Management API token. `state` is now `<type>.<nonce>` (`WP_Auth0_InitialSetup_ConnectionProfile::build_consent_url()`), and `WP_Auth0_InitialSetup_Consent::callback()` verifies the nonce before exchanging the code and answers 403 otherwise. The login callback `state` is unchanged.
+- Reflected XSS: the `error` request parameter was echoed unescaped in `WP_Auth0_InitialSetup::notify_error()` and `WP_Auth0_Import_Settings::show_error()`; the `REQUEST_URI` was echoed unescaped in the `referer` field of `templates/wp-login-form.php` and in the social share widget's inline JS. All are escaped now.
+- `auth0_delete_mfa` reads the Auth0 ID straight from the `auth0_id` user meta and returns an error when the user has none. `WP_Auth0_DBManager::get_auth0_users()` built its `meta_query` wrongly for a list of IDs, so the "export selected users" bulk action and `delete_mfa` never matched the chosen users; it now filters with `include`. Calls without IDs return what they did before.
+- `WP_Auth0_Configure_JWTAUTH::setupjwt()` now exits after its redirect.
+
+References: https://github.com/proudcity/wp-proudcity/issues/3037
+
 ## 2026.11.26.1123
 
 **Security**

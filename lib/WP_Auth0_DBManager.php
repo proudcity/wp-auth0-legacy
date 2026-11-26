@@ -180,11 +180,13 @@ class WP_Auth0_DBManager {
 			$query = array( 'meta_key' => $wpdb->prefix.'auth0_id' );
 		}
 		else {
-			$query = array( 'meta_query' => array(
-        'key' => $wpdb->prefix.'auth0_id',
-        'value' => $user_ids,
-        'compare' => 'IN',
-			) );
+			$ids = array_filter( array_map( 'absint', (array) $user_ids ) );
+
+			if ( empty( $ids ) ) {
+				return array();
+			}
+
+			$query = array( 'meta_key' => $wpdb->prefix.'auth0_id', 'include' => $ids );
 		}
 		$query['blog_id'] = 0;
 

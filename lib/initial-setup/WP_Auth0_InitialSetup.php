@@ -94,7 +94,7 @@ class WP_Auth0_InitialSetup {
 	public function notify_error() {
 ?>
   		<div class="error">
-        <?php echo $_REQUEST['error']; ?>
+        <?php echo esc_html( wp_unslash( $_REQUEST['error'] ) ); ?>
   		</div>
   		<?php
 	}

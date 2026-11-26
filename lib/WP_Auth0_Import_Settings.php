@@ -22,7 +22,7 @@ class WP_Auth0_Import_Settings {
 		<div id="message" class="error">
 			<p>
 				<strong>
-					<?php echo $_REQUEST['error']; ?>
+					<?php echo esc_html( wp_unslash( $_REQUEST['error'] ) ); ?>
 				</strong>
 			</p>
 		</div>

@@ -116,10 +116,14 @@ class WP_Auth0_EditProfile {
 	public function delete_mfa() {
 		$user_id = $this->validate_profile_ajax_request();
 
-		$users = $this->db_manager->get_auth0_users( array( $user_id ) );
-		if ( empty( $users ) ) wp_send_json_success();
+		global $wpdb;
 
-		$user_id = $users[0]->auth0_id;
+		$auth0_id = get_user_meta( $user_id, $wpdb->prefix . 'auth0_id', true );
+		if ( empty( $auth0_id ) ) {
+			wp_send_json_error( array( 'message' => __( 'This user has no Auth0 account linked.', 'wp-auth0' ) ), 404 );
+		}
+
+		$user_id = $auth0_id;
 
 		$provider = 'google-authenticator';
 		$domain = $this->a0_options->get( 'domain' );

@@ -66,6 +66,7 @@ class WP_Auth0_Configure_JWTAUTH {
 		}
 
 		wp_redirect( admin_url( 'admin.php?page=wpa0-jwt-auth' ) );
+		exit;
 
 	}
 
