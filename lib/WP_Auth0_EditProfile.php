@@ -86,21 +86,38 @@ class WP_Auth0_EditProfile {
 		}
 	}
 
-  public function delete_user_data() {
-    if ( ! is_admin() ) return;
+	/**
+	 * Validates an Auth0 profile AJAX request: nonce, a positive integer user_id and
+	 * the edit_user capability on that user (map_meta_cap lets other plugins protect
+	 * specific users). Sends a JSON error and exits when any check fails.
+	 *
+	 * @return int The validated user ID.
+	 */
+	protected function validate_profile_ajax_request() {
+		check_ajax_referer( 'auth0_edit_profile', 'nonce' );
 
-    $user_id = $_POST["user_id"];
+		$user_id = isset( $_POST['user_id'] ) ? absint( wp_unslash( $_POST['user_id'] ) ) : 0;
+
+		if ( ! $user_id || ! current_user_can( 'edit_user', $user_id ) ) {
+			wp_send_json_error( array( 'message' => __( 'You are not allowed to edit this user.', 'wp-auth0' ) ), 403 );
+		}
+
+		return $user_id;
+	}
+
+  public function delete_user_data() {
+    $user_id = $this->validate_profile_ajax_request();
 
     $this->users_repo->delete_auth0_object( $user_id );
+
+    wp_send_json_success();
   }
 
 	public function delete_mfa() {
-		if ( ! is_admin() ) return;
-
-		$user_id = $_POST["user_id"];
+		$user_id = $this->validate_profile_ajax_request();
 
 		$users = $this->db_manager->get_auth0_users( array( $user_id ) );
-		if ( empty( $users ) ) return;
+		if ( empty( $users ) ) wp_send_json_success();
 
 		$user_id = $users[0]->auth0_id;
 
@@ -109,6 +126,8 @@ class WP_Auth0_EditProfile {
 		$app_token = $this->a0_options->get( 'auth0_app_token' );
 
 		WP_Auth0_Api_Client::delete_user_mfa( $domain, $app_token, $user_id, $provider );
+
+		wp_send_json_success();
 	}
 
   public function show_delete_identity() {
@@ -131,7 +150,8 @@ class WP_Auth0_EditProfile {
 
       var data = {
         'action': 'auth0_delete_data',
-        'user_id': '<?php echo $_GET['user_id']; ?>'
+        'user_id': '<?php echo isset( $_GET['user_id'] ) ? absint( $_GET['user_id'] ) : get_current_user_id(); ?>',
+        'nonce': '<?php echo esc_js( wp_create_nonce( 'auth0_edit_profile' ) ); ?>'
       };
 
       jQuery('#auth0_delete_data').attr('disabled', 'true');
@@ -167,7 +187,8 @@ class WP_Auth0_EditProfile {
 
       var data = {
         'action': 'auth0_delete_mfa',
-        'user_id': '<?php echo $_GET['user_id']; ?>'
+        'user_id': '<?php echo isset( $_GET['user_id'] ) ? absint( $_GET['user_id'] ) : get_current_user_id(); ?>',
+        'nonce': '<?php echo esc_js( wp_create_nonce( 'auth0_edit_profile' ) ); ?>'
       };
 
       jQuery('#auth0_delete_mfa').attr('disabled', 'true');

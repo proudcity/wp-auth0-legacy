@@ -1,5 +1,13 @@
 # Change Log
 
+## 2026.11.26.1120
+
+**Security**
+- `wp_ajax_auth0_delete_mfa` and `wp_ajax_auth0_delete_data` (`WP_Auth0_EditProfile`) only checked `is_admin()`, which is always true in admin-ajax, so any logged-in user, a subscriber included, could delete any user's Auth0 MFA enrollment through the Management API or unlink any user's `auth0_id`/`auth0_obj` meta, administrators and staff included. Both handlers now verify a nonce (`auth0_edit_profile`, passed by the profile page JS), require a positive integer `user_id` and require `current_user_can( 'edit_user', $user_id )`, so role plugins that filter `map_meta_cap` protect their users. Failures return a 403 JSON error, and successes now return JSON (`wp_send_json_success()`) so the profile page's `dataType: 'json'` callback runs.
+- Known and not fixed here: the `admin_action_*` handlers (`wpauth0_export_users`, `wpauth0_export_settings`, `wpauth0_import_settings`, `wpauth0_configure_jwt`, `wpauth0_callback_step1`, `wpauth0_callback_step3_social`) and the `wp_ajax_auth0_delete_cache_transient`, `wp_ajax_a0_initial_setup_set_connection` handlers have no capability or nonce checks. Deferred until the move to mainline Auth0.
+
+References: https://github.com/proudcity/wp-proudcity/issues/3037
+
 ## 2026.11.24.1421
 
 **Changed**
